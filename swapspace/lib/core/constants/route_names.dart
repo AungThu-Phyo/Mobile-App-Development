@@ -1,0 +1,7 @@
+abstract class RouteNames {
+  static const String login = '/login';
+  static const String home = '/home';
+  static const String sessionDetail = '/session-detail';
+  static const String createSession = '/create-session';
+  static const String profile = '/profile';
+}
