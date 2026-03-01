@@ -30,3 +30,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SWAPSPACE_ADD2D }}
           channelId: live
           projectId: swapspace-add2d
+          entryPoint: swapspace
