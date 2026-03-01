@@ -1,5 +1,7 @@
 # Deploy to Firebase Hosting on merge (Flutter project)
 
+
+
 name: Deploy to Firebase Hosting on merge
 
 on:
@@ -12,26 +14,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      # ✅ Install EXACT Flutter version
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
+          flutter-version: '3.41.1'
+          channel: 'stable'
 
-      - name: Install dependencies
-        run: |
-          cd swapspace
-          flutter pub get
+      # ✅ Install dependencies
+      - run: flutter pub get
 
-      - name: Build Flutter Web
-        run: |
-          cd swapspace
-          flutter build web
+      # ✅ Build web
+      - run: flutter build web
 
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      # ✅ Deploy to Firebase
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SWAPSPACE_ADD2D }}
