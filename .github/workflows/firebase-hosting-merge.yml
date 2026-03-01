@@ -22,7 +22,7 @@ jobs:
           flutter-version: '3.41.1'
           channel: 'stable'
 
-      # ✅ Install dependencies
+      ## ✅ Install dependencies
       - run: flutter pub get
 
       # ✅ Build web
