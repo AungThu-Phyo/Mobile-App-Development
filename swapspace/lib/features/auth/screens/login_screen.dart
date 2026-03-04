@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../core/constants/route_names.dart';
 import '../../../providers/auth_provider.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -53,9 +51,17 @@ class LoginScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.alternate_email),
                   label: const Text('Sign in with School Email'),
-                  onPressed: () {
-                    context.read<AuthProvider>().login('');
-                    context.go(RouteNames.home);
+                  onPressed: () async {
+                    final authProvider = context.read<AuthProvider>();
+                    final success = await authProvider.signInWithGoogle();
+                    if (!success && authProvider.error != null && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(authProvider.error!),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                 ),
               ),

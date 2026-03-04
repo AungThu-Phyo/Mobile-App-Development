@@ -12,7 +12,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final authProvider = AuthProvider()..checkAuthStatus();
+  final authProvider = AuthProvider();
 
   runApp(
     MultiProvider(

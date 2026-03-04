@@ -5,6 +5,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/mock_data/mock_profile.dart';
 import '../../../models/activity_session.dart';
+import '../../../providers/auth_provider.dart';
 import '../widgets/profile_header.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -97,6 +98,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               },
             ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.logout, color: AppColors.errorRed),
+                  label: const Text(
+                    'Sign Out',
+                    style: TextStyle(color: AppColors.errorRed),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.errorRed),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  ),
+                  onPressed: () {
+                    context.read<AuthProvider>().signOut();
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),

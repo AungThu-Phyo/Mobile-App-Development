@@ -15,6 +15,9 @@ abstract class AppRouter {
       initialLocation: RouteNames.login,
       refreshListenable: authProvider,
       redirect: (context, state) {
+        // While auth state is loading, stay on current route
+        if (authProvider.isLoading) return null;
+
         final isLoggedIn = authProvider.isLoggedIn;
         final isOnLogin = state.matchedLocation == RouteNames.login;
 
