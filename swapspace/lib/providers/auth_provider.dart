@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import '../repositories/user_repository.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UserRepository _userRepo = UserRepository();
 
   User? _firebaseUser;
   UserModel? _currentUser;
@@ -20,19 +22,25 @@ class AuthProvider extends ChangeNotifier {
     _auth.authStateChanges().listen(_onAuthStateChanged);
   }
 
-  void _onAuthStateChanged(User? user) {
+  Future<void> _onAuthStateChanged(User? user) async {
     _firebaseUser = user;
     if (user != null) {
-      _currentUser = UserModel(
-        id: user.uid,
-        name: user.displayName ?? '',
-        email: user.email ?? '',
-        avatarUrl: user.photoURL ?? '',
-        department: '',
-        rating: 0.0,
-        totalSessions: 0,
-        activeSince: DateTime.now().year.toString(),
-      );
+      _currentUser = await _userRepo.getUser(user.uid);
+      if (_currentUser == null) {
+        final newUser = UserModel(
+          uid: user.uid,
+          name: user.displayName ?? '',
+          email: user.email ?? '',
+          avatarUrl: user.photoURL ?? '',
+          createdAt: DateTime.now(),
+          lastSeen: DateTime.now(),
+        );
+        await _userRepo.createUser(newUser);
+        _currentUser = newUser;
+      } else {
+        await _userRepo.updateLastSeen(user.uid);
+        _currentUser = _currentUser!.copyWith(lastSeen: DateTime.now());
+      }
     } else {
       _currentUser = null;
     }
@@ -50,7 +58,7 @@ class AuthProvider extends ChangeNotifier {
       googleProvider.addScope('email');
       googleProvider.addScope('profile');
       googleProvider.setCustomParameters({
-        'hd': 'lamduan.mfu.ac.th',
+        // 'hd': 'lamduan.mfu.ac.th',
         'prompt': 'select_account',
       });
 
@@ -67,18 +75,17 @@ class AuthProvider extends ChangeNotifier {
       }
 
       // Validate email domain
-      final email = user.email ?? '';
-      if (!email.endsWith('@lamduan.mfu.ac.th')) {
-        await user.delete();
-        await _auth.signOut();
-        _error = 'Only MFU student emails (@lamduan.mfu.ac.th) are allowed';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
+      // TODO: Re-enable domain check after testing
+      // final email = user.email ?? '';
+      // if (!email.endsWith('@lamduan.mfu.ac.th')) {
+      //   await user.delete();
+      //   await _auth.signOut();
+      //   _error = 'Only MFU student emails (@lamduan.mfu.ac.th) are allowed';
+      //   _isLoading = false;
+      //   notifyListeners();
+      //   return false;
+      // }
 
-      _isLoading = false;
-      notifyListeners();
       return true;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'popup-closed-by-user' ||

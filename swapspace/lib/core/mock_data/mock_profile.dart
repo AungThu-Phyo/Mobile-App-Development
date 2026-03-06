@@ -1,15 +1,21 @@
 import '../../models/user_model.dart';
 import '../../models/activity_session.dart';
 
-const UserModel mockCurrentUser = UserModel(
-  id: 'user_02',
+final UserModel mockCurrentUser = UserModel(
+  uid: 'user_02',
   name: 'Alex Rivera',
-  email: 'alex.rivera@university.edu',
+  email: 'alex.rivera@lamduan.mfu.ac.th',
   avatarUrl: '',
-  department: 'Science',
+  faculty: 'Science',
   rating: 4.9,
   totalSessions: 42,
-  activeSince: '2023',
+  createdAt: DateTime(2023, 1, 1),
+  lastSeen: DateTime.now(),
+  isActive: true,
+  isProfileComplete: true,
+  bio: '',
+  activityPreferences: ['Study', 'Sports'],
+  interactionPreference: 'social',
 );
 
 final List<ActivitySession> mockCreatedSessions = [

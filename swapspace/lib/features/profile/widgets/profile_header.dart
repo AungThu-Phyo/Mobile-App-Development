@@ -38,7 +38,7 @@ class ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Active since ${user.activeSince}',
+            'Active since ${user.createdAt.year}',
             style: AppTextStyles.captionSmall.copyWith(
               color: AppColors.textSecondary,
             ),

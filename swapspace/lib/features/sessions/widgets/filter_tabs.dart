@@ -16,12 +16,12 @@ class FilterTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = [
-      'All Activities',
+      'All',
       'Study',
-      'Fitness',
-      'Sports',
+      'Gym',
+      'Football',
       'Walking',
-      'Social',
+      'Other',
     ];
 
     return SingleChildScrollView(
