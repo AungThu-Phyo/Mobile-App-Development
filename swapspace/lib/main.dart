@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/join_request_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/feedback_provider.dart';
 import 'app.dart';
 
 void main() async {
@@ -16,6 +17,7 @@ void main() async {
 
   final authProvider = AuthProvider();
   final notificationProvider = NotificationProvider();
+  final feedbackProvider = FeedbackProvider();
   final sessionProvider = SessionProvider()
     ..setNotificationProvider(notificationProvider);
   final joinRequestProvider = JoinRequestProvider()
@@ -28,6 +30,7 @@ void main() async {
         ChangeNotifierProvider.value(value: sessionProvider),
         ChangeNotifierProvider.value(value: joinRequestProvider),
         ChangeNotifierProvider.value(value: notificationProvider),
+        ChangeNotifierProvider.value(value: feedbackProvider),
       ],
       child: SwapSpaceApp(authProvider: authProvider),
     ),

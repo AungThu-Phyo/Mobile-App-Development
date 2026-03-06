@@ -37,10 +37,20 @@ class SessionProvider extends ChangeNotifier {
   String? get error => _error;
 
   List<SessionModel> get filteredSessions {
-    var result = _sessions.where((s) =>
-        s.creatorUid == _currentUid ||
-        s.minRating <= _userRating ||
-        s.minRating == 0).toList();
+    var result = _sessions.where((s) {
+      final isMine = s.creatorUid == _currentUid;
+      final hasJoined = s.participantUids.contains(_currentUid);
+      final isFull = s.participantUids.length >= s.maxParticipants;
+
+      // Always show sessions the user created or already joined
+      if (isMine || hasJoined) return true;
+
+      // Hide full sessions from other users
+      if (isFull) return false;
+
+      // Check min rating requirement
+      return s.minRating <= _userRating || s.minRating == 0;
+    }).toList();
     if (_selectedFilter != 'All') {
       result = result
           .where((s) => s.activityType.toLowerCase() == _selectedFilter.toLowerCase())
@@ -167,7 +177,14 @@ class SessionProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final updated = session.copyWith(updatedAt: DateTime.now());
+      // If session was matched but now has room, revert to open
+      var toSave = session;
+      if (session.status == 'matched' &&
+          session.participantUids.length < session.maxParticipants) {
+        toSave = session.copyWith(status: 'open', isActive: true);
+      }
+
+      final updated = toSave.copyWith(updatedAt: DateTime.now());
       await _repo.update(updated);
 
       final idx = _sessions.indexWhere((s) => s.sessionId == updated.sessionId);

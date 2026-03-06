@@ -16,14 +16,12 @@ class NotificationRepository {
   Stream<QuerySnapshot<Map<String, dynamic>>> streamForUser(String uid) {
     return _ref
         .where('recipientUid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
   Future<List<NotificationModel>> getForUser(String uid) async {
     final snapshot = await _ref
         .where('recipientUid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .get();
     return snapshot.docs
         .map((doc) => NotificationModel.fromMap(doc.data()))

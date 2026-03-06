@@ -8,6 +8,7 @@ import '../../../core/constants/route_names.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/feedback_provider.dart';
 import '../../../providers/session_provider.dart';
 import '../../../providers/join_request_provider.dart';
 import '../../../repositories/user_repository.dart';
@@ -24,11 +25,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   final UserRepository _userRepo = UserRepository();
   UserModel? _creator;
   bool _loadingCreator = true;
+  bool _requestSent = false;
+  bool _feedbackSubmitted = false;
 
   @override
   void initState() {
     super.initState();
     _loadCreator();
+    _checkFeedback();
   }
 
   Future<void> _loadCreator() async {
@@ -36,6 +40,21 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       _creator = await _userRepo.getUser(widget.session.creatorUid);
     } catch (_) {}
     if (mounted) setState(() => _loadingCreator = false);
+  }
+
+  Future<void> _checkFeedback() async {
+    if (widget.session.status != 'completed') return;
+    final currentUid =
+        context.read<AuthProvider>().firebaseUser?.uid ?? '';
+    if (currentUid.isEmpty) return;
+    final otherCount = widget.session.participantUids
+        .where((uid) => uid != currentUid)
+        .length;
+    final submitted = await context
+        .read<FeedbackProvider>()
+        .hasAllFeedbackSubmitted(
+            widget.session.sessionId, currentUid, otherCount);
+    if (mounted) setState(() => _feedbackSubmitted = submitted);
   }
 
   @override
@@ -215,10 +234,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             // Action buttons
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: SizedBox(
-                width: double.infinity,
-                child: _buildActionButton(context, currentUid, isCreator, isOpen),
-              ),
+              child: _buildActionButtons(context, currentUid, isCreator, isOpen),
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
@@ -227,68 +243,198 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, String currentUid, bool isCreator, bool isOpen) {
+  Widget _buildActionButtons(BuildContext context, String currentUid, bool isCreator, bool isOpen) {
     final hasJoined = widget.session.participantUids.contains(currentUid);
+    final isMatched = widget.session.status == 'matched';
+    final isCompleted = widget.session.status == 'completed';
 
-    if (isCreator) {
-      return OutlinedButton.icon(
-        icon: const Icon(Icons.cancel, color: AppColors.errorRed),
-        label: const Text('Cancel Session', style: TextStyle(color: AppColors.errorRed)),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.errorRed),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+    final buttons = <Widget>[];
+
+    // "Complete Session" — only for creator of a matched session
+    if (isCreator && isMatched) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Complete Session'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.successGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            onPressed: () => _completeSession(context),
+          ),
         ),
-        onPressed: isOpen
-            ? () async {
-                final provider = context.read<SessionProvider>();
-                final success = await provider.cancelSession(widget.session.sessionId);
-                if (success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Session cancelled')),
-                  );
-                  context.go(RouteNames.home);
-                }
+      );
+      buttons.add(const SizedBox(height: AppSpacing.sm));
+    }
+
+    // "Give Feedback" — for anyone involved in a completed session (if not already submitted)
+    if (isCompleted && (isCreator || hasJoined) && !_feedbackSubmitted) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.rate_review),
+            label: const Text('Give Feedback'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            onPressed: () =>
+                context.go(RouteNames.feedback, extra: widget.session),
+          ),
+        ),
+      );
+      buttons.add(const SizedBox(height: AppSpacing.sm));
+    }
+
+    // Cancel — for creator of open/matched session
+    if (isCreator && (isOpen || isMatched)) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.cancel, color: AppColors.errorRed),
+            label: const Text('Cancel Session',
+                style: TextStyle(color: AppColors.errorRed)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.errorRed),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            onPressed: () async {
+              final provider = context.read<SessionProvider>();
+              final success =
+                  await provider.cancelSession(widget.session.sessionId);
+              if (success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Session cancelled')),
+                );
+                context.go(RouteNames.home);
               }
-            : null,
-      );
-    }
-
-    if (hasJoined) {
-      return OutlinedButton.icon(
-        icon: const Icon(Icons.exit_to_app, color: AppColors.errorRed),
-        label: const Text('Leave Session', style: TextStyle(color: AppColors.errorRed)),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.errorRed),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            },
+          ),
         ),
-        onPressed: () async {
-          final authProvider = context.read<AuthProvider>();
-          final userName = authProvider.currentUser?.name ?? '';
-          final provider = context.read<JoinRequestProvider>();
-          final success = await provider.leaveSession(
-            sessionId: widget.session.sessionId,
-            uid: currentUid,
-            userName: userName,
-          );
-          if (success && mounted) {
-            context.read<SessionProvider>().loadOpenSessions();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('You left the session')),
-            );
-            context.go(RouteNames.home);
-          }
-        },
       );
     }
 
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.person_add),
-      label: const Text('Request to Join'),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+    // Leave — for non-creator participants of open/matched sessions
+    if (!isCreator && hasJoined && (isOpen || isMatched)) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.exit_to_app, color: AppColors.errorRed),
+            label: const Text('Leave Session',
+                style: TextStyle(color: AppColors.errorRed)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.errorRed),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            onPressed: () async {
+              final authProvider = context.read<AuthProvider>();
+              final userName = authProvider.currentUser?.name ?? '';
+              final provider = context.read<JoinRequestProvider>();
+              final success = await provider.leaveSession(
+                sessionId: widget.session.sessionId,
+                uid: currentUid,
+                userName: userName,
+              );
+              if (success && mounted) {
+                context.read<SessionProvider>().loadOpenSessions();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('You left the session')),
+                );
+                context.go(RouteNames.home);
+              }
+            },
+          ),
+        ),
+      );
+    }
+
+    // Request to Join — for non-creator, non-joined users on sessions with room
+    final hasRoom = widget.session.participantUids.length < widget.session.maxParticipants;
+    if (!isCreator && !hasJoined && (isOpen || (isMatched && hasRoom))) {
+      if (_requestSent) {
+        final creatorName = _creator?.name ?? widget.session.creatorName;
+        buttons.add(
+          Card(
+            color: AppColors.successGreenLight,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: AppColors.successGreen),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Your request has been sent to $creatorName',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.successGreen),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      } else {
+        buttons.add(
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.person_add),
+              label: const Text('Request to Join'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              ),
+              onPressed: () => _showJoinDialog(context, currentUid),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    return Column(children: buttons);
+  }
+
+  Future<void> _completeSession(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete Session'),
+        content: const Text(
+          'Mark this session as completed? Both you and participants will be prompted to give feedback.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Complete'),
+          ),
+        ],
       ),
-      onPressed: isOpen ? () => _showJoinDialog(context, currentUid) : null,
     );
+
+    if (confirmed != true || !mounted) return;
+
+    final provider = context.read<SessionProvider>();
+    final updated = widget.session.copyWith(
+      status: 'completed',
+      isActive: false,
+      updatedAt: DateTime.now(),
+    );
+    final success = await provider.updateSession(updated);
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session completed! Please give feedback.')),
+      );
+      context.go(RouteNames.feedback, extra: updated);
+    }
   }
 
   void _showJoinDialog(BuildContext context, String currentUid) {
@@ -314,20 +460,26 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               final provider = context.read<JoinRequestProvider>();
+              final authProvider = context.read<AuthProvider>();
+              final userName = authProvider.currentUser?.name ?? 'Someone';
               final success = await provider.sendJoinRequest(
                 sessionId: widget.session.sessionId,
                 creatorUid: widget.session.creatorUid,
                 requesterUid: currentUid,
+                requesterName: userName,
+                sessionTitle: widget.session.title,
                 message: messageController.text.trim(),
               );
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success
-                        ? 'Join request sent!'
-                        : provider.error ?? 'Failed to send request'),
-                  ),
-                );
+                if (success) {
+                  setState(() => _requestSent = true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(provider.error ?? 'Failed to send request'),
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Send'),
@@ -362,10 +514,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   String _formatDuration() {
     final dur = widget.session.durationMinutes;
-    if (dur >= 60) {
-      return dur % 60 == 0 ? '${dur ~/ 60}h' : '${dur ~/ 60}h ${dur % 60}m';
-    }
-    return '${dur}m';
+    final days = dur ~/ (24 * 60);
+    final remain = dur % (24 * 60);
+    final hours = remain ~/ 60;
+    final mins = remain % 60;
+    final parts = <String>[];
+    if (days > 0) parts.add('${days}d');
+    if (hours > 0) parts.add('${hours}h');
+    if (mins > 0 || parts.isEmpty) parts.add('${mins}m');
+    return parts.join(' ');
   }
 }
 

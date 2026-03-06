@@ -19,8 +19,12 @@ class NotificationProvider extends ChangeNotifier {
       _notifications = snapshot.docs
           .map((doc) => NotificationModel.fromMap(doc.data()))
           .toList();
+      // Sort client-side (newest first) to avoid composite index requirement
+      _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       notifyListeners();
-    }, onError: (_) {});
+    }, onError: (e) {
+      debugPrint('Notification stream error: $e');
+    });
   }
 
   Future<void> markAsRead(String notificationId) async {

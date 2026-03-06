@@ -6,4 +6,5 @@ abstract class RouteNames {
   static const String requests = '/requests';
   static const String profile = '/profile';
   static const String editSession = '/edit-session';
+  static const String feedback = '/feedback';
 }

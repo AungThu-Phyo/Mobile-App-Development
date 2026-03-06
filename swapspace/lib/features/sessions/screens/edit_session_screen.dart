@@ -23,6 +23,7 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _locationController;
   late final TextEditingController _facultyController;
+  late final TextEditingController _daysController;
   late final TextEditingController _hoursController;
   late final TextEditingController _minutesController;
   late final TextEditingController _participantsController;
@@ -44,8 +45,12 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
     _descriptionController = TextEditingController(text: s.description);
     _locationController = TextEditingController(text: s.location);
     _facultyController = TextEditingController(text: s.faculty);
-    _hoursController = TextEditingController(text: '${s.durationMinutes ~/ 60}');
-    _minutesController = TextEditingController(text: '${s.durationMinutes % 60}');
+    final totalMinutes = s.durationMinutes;
+    final days = totalMinutes ~/ (24 * 60);
+    final remainAfterDays = totalMinutes % (24 * 60);
+    _daysController = TextEditingController(text: days > 0 ? '$days' : '');
+    _hoursController = TextEditingController(text: '${remainAfterDays ~/ 60}');
+    _minutesController = TextEditingController(text: '${remainAfterDays % 60}');
     _participantsController = TextEditingController(text: '${s.maxParticipants}');
     _activityType = s.activityType;
     _minRating = s.minRating;
@@ -60,6 +65,7 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _facultyController.dispose();
+    _daysController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
     _participantsController.dispose();
@@ -112,9 +118,10 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
       _selectedTime.minute,
     );
 
+    final days = int.tryParse(_daysController.text) ?? 0;
     final hours = int.tryParse(_hoursController.text) ?? 0;
     final minutes = int.tryParse(_minutesController.text) ?? 0;
-    final durationMinutes = hours * 60 + minutes;
+    final durationMinutes = days * 24 * 60 + hours * 60 + minutes;
     final maxParticipants = int.tryParse(_participantsController.text) ?? 2;
 
     final updated = widget.session.copyWith(
@@ -315,16 +322,46 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Duration (Hours + Minutes)
+              // Duration (Days + Hours + Minutes)
               const Text('Duration', style: AppTextStyles.labelLarge),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
+                      controller: _daysController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(30),
+                      ],
+                      decoration: InputDecoration(
+                        hintText: 'Days',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      validator: (v) {
+                        final d = int.tryParse(v ?? '') ?? 0;
+                        final h = int.tryParse(_hoursController.text) ?? 0;
+                        final m = int.tryParse(_minutesController.text) ?? 0;
+                        if (d == 0 && h == 0 && m == 0) return 'Required';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: TextFormField(
                       controller: _hoursController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(23),
+                      ],
                       decoration: InputDecoration(
                         hintText: 'Hours',
                         prefixIcon: const Icon(Icons.schedule, color: AppColors.primaryBlue),
@@ -336,9 +373,10 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
                         ),
                       ),
                       validator: (v) {
+                        final d = int.tryParse(_daysController.text) ?? 0;
                         final h = int.tryParse(v ?? '') ?? 0;
                         final m = int.tryParse(_minutesController.text) ?? 0;
-                        if (h == 0 && m == 0) return 'Duration required';
+                        if (d == 0 && h == 0 && m == 0) return 'Required';
                         return null;
                       },
                     ),
@@ -348,7 +386,10 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
                     child: TextFormField(
                       controller: _minutesController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(59),
+                      ],
                       decoration: InputDecoration(
                         hintText: 'Minutes',
                         filled: true,
@@ -375,7 +416,10 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
               TextFormField(
                 controller: _participantsController,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  _MaxValueFormatter(50),
+                ],
                 decoration: InputDecoration(
                   hintText: 'e.g. 2',
                   prefixIcon: const Icon(Icons.group, color: AppColors.primaryBlue),
@@ -524,5 +568,20 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Limits numeric input to a maximum value.
+class _MaxValueFormatter extends TextInputFormatter {
+  final int max;
+  _MaxValueFormatter(this.max);
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+    final value = int.tryParse(newValue.text);
+    if (value == null || value > max) return oldValue;
+    return newValue;
   }
 }

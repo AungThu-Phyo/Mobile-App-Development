@@ -9,6 +9,7 @@ import '../../features/sessions/screens/home_screen.dart';
 import '../../features/sessions/screens/session_detail_screen.dart';
 import '../../features/sessions/screens/create_session_screen.dart';
 import '../../features/sessions/screens/edit_session_screen.dart';
+import '../../features/sessions/screens/feedback_screen.dart';
 import '../../features/sessions/screens/requests_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../providers/join_request_provider.dart';
@@ -70,6 +71,13 @@ abstract class AppRouter {
           builder: (context, state) {
             final session = state.extra as SessionModel;
             return EditSessionScreen(session: session);
+          },
+        ),
+        GoRoute(
+          path: RouteNames.feedback,
+          builder: (context, state) {
+            final session = state.extra as SessionModel;
+            return FeedbackScreen(session: session);
           },
         ),
       ],

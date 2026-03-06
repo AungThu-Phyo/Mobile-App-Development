@@ -60,13 +60,30 @@ class FeedbackRepository {
     try {
       final snapshot = await _feedbackRef
           .where('revieweeUid', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
+          .get();
+      final list = snapshot.docs
+          .map((doc) => FeedbackModel.fromMap(doc.data()))
+          .toList();
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    } catch (e) {
+      throw Exception('Failed to get feedback for user: $e');
+    }
+  }
+
+  /// Returns feedback docs for a specific session by a specific reviewer.
+  Future<List<FeedbackModel>> queryBySessionAndReviewer(
+      String sessionId, String reviewerUid) async {
+    try {
+      final snapshot = await _feedbackRef
+          .where('sessionId', isEqualTo: sessionId)
+          .where('reviewerUid', isEqualTo: reviewerUid)
           .get();
       return snapshot.docs
           .map((doc) => FeedbackModel.fromMap(doc.data()))
           .toList();
     } catch (e) {
-      throw Exception('Failed to get feedback for user: $e');
+      throw Exception('Failed to query feedback: $e');
     }
   }
 

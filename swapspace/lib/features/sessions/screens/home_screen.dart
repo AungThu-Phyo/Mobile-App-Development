@@ -595,7 +595,14 @@ class _JoinRequestCardState extends State<_JoinRequestCard> {
                                 context.read<SessionProvider>().loadOpenSessions();
                                 Navigator.pop(context); // close bottom sheet
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Accepted! Session is now matched.')),
+                                  const SnackBar(content: Text('Request accepted!')),
+                                );
+                              } else {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(provider.error ?? 'Failed to accept request'),
+                                  ),
                                 );
                               }
                             }

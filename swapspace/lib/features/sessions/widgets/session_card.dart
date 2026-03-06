@@ -179,10 +179,15 @@ class SessionCard extends StatelessWidget {
 
   String _formatDuration() {
     final dur = session.durationMinutes;
-    if (dur >= 60) {
-      return dur % 60 == 0 ? '${dur ~/ 60}h' : '${dur ~/ 60}h${dur % 60}m';
-    }
-    return '${dur}m';
+    final days = dur ~/ (24 * 60);
+    final remain = dur % (24 * 60);
+    final hours = remain ~/ 60;
+    final mins = remain % 60;
+    final parts = <String>[];
+    if (days > 0) parts.add('${days}d');
+    if (hours > 0) parts.add('${hours}h');
+    if (mins > 0 || parts.isEmpty) parts.add('${mins}m');
+    return parts.join(' ');
   }
 }
 

@@ -119,12 +119,15 @@ class SessionRepository {
   Future<List<SessionModel>> getSessionsByUser(String uid) async {
     try {
       // Firestore doesn't support OR queries across fields in a single query,
-      // so we run two queries and merge results.
+      // so we run three queries and merge results.
       final creatorSnapshot = await _sessionsRef
           .where('creatorUid', isEqualTo: uid)
           .get();
       final partnerSnapshot = await _sessionsRef
           .where('partnerUid', isEqualTo: uid)
+          .get();
+      final participantSnapshot = await _sessionsRef
+          .where('participantUids', arrayContains: uid)
           .get();
 
       final Map<String, SessionModel> merged = {};
@@ -133,6 +136,10 @@ class SessionRepository {
         merged[session.sessionId] = session;
       }
       for (final doc in partnerSnapshot.docs) {
+        final session = SessionModel.fromMap(doc.data());
+        merged[session.sessionId] = session;
+      }
+      for (final doc in participantSnapshot.docs) {
         final session = SessionModel.fromMap(doc.data());
         merged[session.sessionId] = session;
       }

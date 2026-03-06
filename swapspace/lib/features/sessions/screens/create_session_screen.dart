@@ -23,9 +23,10 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _facultyController = TextEditingController();
-  final _hoursController = TextEditingController(text: '1');
-  final _minutesController = TextEditingController(text: '0');
-  final _participantsController = TextEditingController(text: '2');
+  final _daysController = TextEditingController();
+  final _hoursController = TextEditingController();
+  final _minutesController = TextEditingController();
+  final _participantsController = TextEditingController();
 
   String _activityType = 'study';
   double _minRating = 0.0;
@@ -42,6 +43,7 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _facultyController.dispose();
+    _daysController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
     _participantsController.dispose();
@@ -77,9 +79,10 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     final creatorName = authProvider.currentUser?.name ?? '';
     final now = DateTime.now();
 
+    final days = int.tryParse(_daysController.text) ?? 0;
     final hours = int.tryParse(_hoursController.text) ?? 0;
     final minutes = int.tryParse(_minutesController.text) ?? 0;
-    final durationMinutes = hours * 60 + minutes;
+    final durationMinutes = days * 24 * 60 + hours * 60 + minutes;
     final maxParticipants = int.tryParse(_participantsController.text) ?? 2;
 
     final sessionDate = DateTime(
@@ -295,21 +298,44 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Duration (Hours + Minutes)
+              // Duration (Days + Hours + Minutes)
               const Text('Duration', style: AppTextStyles.labelLarge),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
+                      controller: _daysController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(30),
+                      ],
+                      decoration: _fieldDecor(hint: 'Days'),
+                      validator: (v) {
+                        final d = int.tryParse(v ?? '') ?? 0;
+                        final h = int.tryParse(_hoursController.text) ?? 0;
+                        final m = int.tryParse(_minutesController.text) ?? 0;
+                        if (d == 0 && h == 0 && m == 0) return 'Required';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: TextFormField(
                       controller: _hoursController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(23),
+                      ],
                       decoration: _fieldDecor(hint: 'Hours', prefix: const Icon(Icons.schedule, color: AppColors.primaryBlue)),
                       validator: (v) {
+                        final d = int.tryParse(_daysController.text) ?? 0;
                         final h = int.tryParse(v ?? '') ?? 0;
                         final m = int.tryParse(_minutesController.text) ?? 0;
-                        if (h == 0 && m == 0) return 'Duration required';
+                        if (d == 0 && h == 0 && m == 0) return 'Required';
                         return null;
                       },
                     ),
@@ -319,7 +345,10 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
                     child: TextFormField(
                       controller: _minutesController,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxValueFormatter(59),
+                      ],
                       decoration: _fieldDecor(hint: 'Minutes'),
                       validator: (v) {
                         final m = int.tryParse(v ?? '') ?? 0;
@@ -338,7 +367,10 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
               TextFormField(
                 controller: _participantsController,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  _MaxValueFormatter(50),
+                ],
                 decoration: _fieldDecor(hint: 'e.g. 2', prefix: const Icon(Icons.group, color: AppColors.primaryBlue)),
                 validator: (v) {
                   final n = int.tryParse(v ?? '') ?? 0;
@@ -463,6 +495,21 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Limits numeric input to a maximum value.
+class _MaxValueFormatter extends TextInputFormatter {
+  final int max;
+  _MaxValueFormatter(this.max);
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+    final value = int.tryParse(newValue.text);
+    if (value == null || value > max) return oldValue;
+    return newValue;
   }
 }
 

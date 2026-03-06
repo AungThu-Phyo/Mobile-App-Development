@@ -92,6 +92,8 @@ class JoinRequestProvider extends ChangeNotifier {
     required String sessionId,
     required String creatorUid,
     required String requesterUid,
+    required String requesterName,
+    required String sessionTitle,
     String message = '',
   }) async {
     try {
@@ -115,6 +117,18 @@ class JoinRequestProvider extends ChangeNotifier {
 
       await _requestRepo.create(request);
       _outgoingRequests.insert(0, request);
+
+      // Notify the creator about the join request
+      _notificationProvider?.sendNotification(
+        recipientUid: creatorUid,
+        senderUid: requesterUid,
+        senderName: requesterName,
+        sessionId: sessionId,
+        sessionTitle: sessionTitle,
+        type: 'join_request',
+        message: '$requesterName requested to join your session "$sessionTitle"',
+      );
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -185,63 +199,101 @@ class JoinRequestProvider extends ChangeNotifier {
         return false;
       }
 
-      final acceptedRequest = request.copyWith(
-        status: 'accepted',
-        updatedAt: DateTime.now(),
-      );
-      await _requestRepo.update(acceptedRequest);
-
-      // 2. Update session: add requester to participantUids
+      // 2. Fetch latest session and check if already full
       final session = await _sessionRepo.getById(sessionId);
-      if (session != null) {
-        final updatedUids = [...session.participantUids, requesterUid];
-        final isFull = updatedUids.length >= session.maxParticipants;
-        final matchedSession = session.copyWith(
-          participantUids: updatedUids,
-          partnerUid: requesterUid,
-          status: isFull ? 'matched' : 'open',
+      if (session == null) {
+        _error = 'Session not found';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      if (session.participantUids.length >= session.maxParticipants) {
+        // Session already full — auto-reject this request
+        await _requestRepo.update(request.copyWith(
+          status: 'rejected',
           updatedAt: DateTime.now(),
-        );
-        await _sessionRepo.update(matchedSession);
-
-        // 3. If session is full, reject all other pending requests + notify them
-        if (isFull) {
-          final otherRequests =
-              await _requestRepo.getRequestsForSession(sessionId);
-          for (final other in otherRequests) {
-            if (other.requestId != requestId && other.status == 'pending') {
-              await _requestRepo.update(other.copyWith(
-                status: 'rejected',
-                updatedAt: DateTime.now(),
-              ));
-              _notificationProvider?.sendNotification(
-                recipientUid: other.requesterUid,
-                senderUid: session.creatorUid,
-                senderName: session.creatorName,
-                sessionId: sessionId,
-                sessionTitle: session.title,
-                type: 'request_rejected',
-                message: '${session.creatorName} rejected your request for ${session.title} (session is full)',
-              );
-            }
-          }
-        }
-
-        // 4. Send acceptance notification to requester
+        ));
         _notificationProvider?.sendNotification(
           recipientUid: requesterUid,
           senderUid: session.creatorUid,
           senderName: session.creatorName,
           sessionId: sessionId,
           sessionTitle: session.title,
-          type: 'request_accepted',
-          message: '${session.creatorName} accepted your request for ${session.title}',
+          type: 'request_rejected',
+          message:
+              '${session.creatorName} could not accept your request to join "${session.title}" (session is full)',
         );
+        _incomingRequests =
+            _incomingRequests.where((r) => r.requestId != requestId).toList();
+        _error = 'Session is already full';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
-      // 5. Update local state
-      _incomingRequests =
-          _incomingRequests.where((r) => r.requestId != requestId).toList();
+      // 3. Accept the request
+      final acceptedRequest = request.copyWith(
+        status: 'accepted',
+        updatedAt: DateTime.now(),
+      );
+      await _requestRepo.update(acceptedRequest);
+
+      // 4. Update session: add requester to participantUids
+      final updatedUids = [...session.participantUids, requesterUid];
+      final isFull = updatedUids.length >= session.maxParticipants;
+      final matchedSession = session.copyWith(
+        participantUids: updatedUids,
+        partnerUid: requesterUid,
+        status: isFull ? 'matched' : 'open',
+        updatedAt: DateTime.now(),
+      );
+      await _sessionRepo.update(matchedSession);
+
+      // 5. If session is now full, reject ALL other pending requests + notify
+      if (isFull) {
+        final allRequests =
+            await _requestRepo.getRequestsForSession(sessionId);
+        for (final other in allRequests) {
+          if (other.requestId != requestId && other.status == 'pending') {
+            await _requestRepo.update(other.copyWith(
+              status: 'rejected',
+              updatedAt: DateTime.now(),
+            ));
+            _notificationProvider?.sendNotification(
+              recipientUid: other.requesterUid,
+              senderUid: session.creatorUid,
+              senderName: session.creatorName,
+              sessionId: sessionId,
+              sessionTitle: session.title,
+              type: 'request_rejected',
+              message:
+                  '${session.creatorName} could not accept your request to join "${session.title}" (session is full)',
+            );
+          }
+        }
+        // Clear all remaining incoming requests for this session locally
+        _incomingRequests = _incomingRequests
+            .where((r) => r.sessionId != sessionId)
+            .toList();
+      } else {
+        // Just remove the accepted one
+        _incomingRequests =
+            _incomingRequests.where((r) => r.requestId != requestId).toList();
+      }
+
+      // 6. Send acceptance notification to requester
+      _notificationProvider?.sendNotification(
+        recipientUid: requesterUid,
+        senderUid: session.creatorUid,
+        senderName: session.creatorName,
+        sessionId: sessionId,
+        sessionTitle: session.title,
+        type: 'request_accepted',
+        message:
+            '${session.creatorName} accepted your request to join the session "${session.title}"',
+      );
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -286,7 +338,7 @@ class JoinRequestProvider extends ChangeNotifier {
           sessionId: request.sessionId,
           sessionTitle: session.title,
           type: 'request_rejected',
-          message: '${session.creatorName} rejected your request for ${session.title}',
+          message: '${session.creatorName} rejected your request to join \"${session.title}\"',
         );
       }
 
