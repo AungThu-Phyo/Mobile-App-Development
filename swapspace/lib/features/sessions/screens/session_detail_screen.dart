@@ -44,8 +44,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   Future<void> _checkFeedback() async {
     if (widget.session.status != 'completed') return;
-    final currentUid =
-        context.read<AuthProvider>().firebaseUser?.uid ?? '';
+    final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
     if (currentUid.isEmpty) return;
     final otherCount = widget.session.participantUids
         .where((uid) => uid != currentUid)
@@ -53,7 +52,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final submitted = await context
         .read<FeedbackProvider>()
         .hasAllFeedbackSubmitted(
-            widget.session.sessionId, currentUid, otherCount);
+          widget.session.sessionId,
+          currentUid,
+          otherCount,
+        );
     if (mounted) setState(() => _feedbackSubmitted = submitted);
   }
 
@@ -66,184 +68,331 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Session Details'),
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.primaryBlueLight,
+              ),
+              child: Icon(
+                Icons.event_note_rounded,
+                size: 18,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('Session Details'),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(RouteNames.home),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero banner
-            Container(
-              height: 180,
-              width: double.infinity,
-              color: AppColors.primaryBlueLight,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(_activityIcon(), size: 56, color: AppColors.primaryBlue),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      widget.session.activityType[0].toUpperCase() +
-                          widget.session.activityType.substring(1),
-                      style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryBlue),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 860;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: AppColors.heroGradientCoolToWarm,
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Title + status
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(widget.session.title, style: AppTextStyles.headingMedium),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                    border: Border.all(color: AppColors.grey200),
                   ),
-                  _StatusBadge(status: widget.session.status),
-                ],
-              ),
-            ),
-
-            // Description
-            if (widget.session.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Text(
-                  widget.session.description,
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-                ),
-              ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Creator info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                  child: _loadingCreator
-                      ? const Center(child: CircularProgressIndicator())
-                      : Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: AppColors.primaryBlueLight,
-                              backgroundImage: _creator != null && _creator!.avatarUrl.isNotEmpty
-                                  ? NetworkImage(_creator!.avatarUrl)
-                                  : null,
-                              child: _creator == null || _creator!.avatarUrl.isEmpty
-                                  ? Text(
-                                      _creator?.name.isNotEmpty == true
-                                          ? _creator!.name[0]
-                                          : '?',
-                                      style: AppTextStyles.headingSmall
-                                          .copyWith(color: AppColors.primaryBlue),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _creator?.name ??
-                                        (widget.session.creatorName.isNotEmpty
-                                            ? widget.session.creatorName
-                                            : 'Unknown'),
-                                    style: AppTextStyles.labelLarge,
-                                  ),
-                                  if (_creator?.faculty.isNotEmpty == true)
-                                    Text(
-                                      _creator!.faculty,
-                                      style: AppTextStyles.caption
-                                          .copyWith(color: AppColors.primaryBlue),
-                                    ),
-                                ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: AppColors.heroIconSurface,
+                              borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusLg,
                               ),
                             ),
-                            const Icon(Icons.star, color: AppColors.warningOrange, size: 16),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              (_creator?.rating ?? 0).toStringAsFixed(1),
-                              style: AppTextStyles.labelLarge,
+                            child: Icon(
+                              _activityIcon(),
+                              size: 34,
+                              color: AppColors.primaryBlue,
                             ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Details card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: const Text('Activity Details', style: AppTextStyles.headingSmall),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                  child: Column(
-                    children: [
-                      _DetailRow(
-                          icon: Icons.category,
-                          label: 'Type',
-                          value: widget.session.activityType[0].toUpperCase() +
-                              widget.session.activityType.substring(1)),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.calendar_today, label: 'Date', value: _formatDate()),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.access_time, label: 'Time', value: _formatTime()),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.timer, label: 'Duration', value: _formatDuration()),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.location_on, label: 'Location', value: widget.session.location),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.group, label: 'Participants', value: '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined'),
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(
-                        icon: widget.session.interactionPreference == 'silent'
-                            ? Icons.volume_off
-                            : Icons.chat_bubble_outline,
-                        label: 'Interaction',
-                        value: widget.session.interactionPreference[0].toUpperCase() +
-                            widget.session.interactionPreference.substring(1),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _StatusBadge(status: widget.session.status),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  widget.session.title,
+                                  style: AppTextStyles.headingMedium,
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  widget.session.activityType[0].toUpperCase() +
+                                      widget.session.activityType.substring(1),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.primaryBlueDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      if (widget.session.faculty.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        _DetailRow(icon: Icons.school, label: 'Faculty', value: widget.session.faculty),
+                      if (widget.session.description.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          widget.session.description,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
-                      const SizedBox(height: AppSpacing.sm),
-                      _DetailRow(icon: Icons.star, label: 'Min Rating Required', value: widget.session.minRating.toStringAsFixed(1)),
+                      const SizedBox(height: AppSpacing.md),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          _QuickInfoChip(
+                            icon: Icons.calendar_today_rounded,
+                            text: _formatDate(),
+                          ),
+                          _QuickInfoChip(
+                            icon: Icons.access_time_rounded,
+                            text: _formatTime(),
+                          ),
+                          _QuickInfoChip(
+                            icon: Icons.timer_outlined,
+                            text: _formatDuration(),
+                          ),
+                          _QuickInfoChip(
+                            icon: Icons.group_rounded,
+                            text:
+                                '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.lg),
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildCreatorCard()),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: _buildDetailsCard()),
+                    ],
+                  )
+                else ...[
+                  _buildCreatorCard(),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildDetailsCard(),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                _SectionShell(
+                  title: 'Actions',
+                  subtitle: 'Manage this session based on your current role.',
+                  child: _buildActionButtons(
+                    context,
+                    currentUid,
+                    isCreator,
+                    isOpen,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
             ),
-
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: _buildActionButtons(context, currentUid, isCreator, isOpen),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, String currentUid, bool isCreator, bool isOpen) {
+  Widget _buildCreatorCard() {
+    return _SectionShell(
+      title: 'Host',
+      subtitle: 'The person organizing this session.',
+      child: _loadingCreator
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.md),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: AppColors.primaryBlueLight,
+                  backgroundImage:
+                      _creator != null && _creator!.avatarUrl.isNotEmpty
+                      ? NetworkImage(_creator!.avatarUrl)
+                      : null,
+                  child: _creator == null || _creator!.avatarUrl.isEmpty
+                      ? Text(
+                          _creator?.name.isNotEmpty == true
+                              ? _creator!.name[0]
+                              : '?',
+                          style: AppTextStyles.headingSmall.copyWith(
+                            color: AppColors.primaryBlue,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _creator?.name ??
+                            (widget.session.creatorName.isNotEmpty
+                                ? widget.session.creatorName
+                                : 'Unknown'),
+                        style: AppTextStyles.labelLarge,
+                      ),
+                      if (_creator?.faculty.isNotEmpty == true)
+                        Text(
+                          _creator!.faculty,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primaryBlueDark,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningOrangeLight,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        color: AppColors.warningOrange,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        (_creator?.rating ?? 0).toStringAsFixed(1),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.warningOrange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildDetailsCard() {
+    return _SectionShell(
+      title: 'Activity Details',
+      subtitle: 'Everything you need before joining.',
+      child: Column(
+        children: [
+          _DetailRow(
+            icon: Icons.category,
+            label: 'Type',
+            value:
+                widget.session.activityType[0].toUpperCase() +
+                widget.session.activityType.substring(1),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.calendar_today,
+            label: 'Date',
+            value: _formatDate(),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.access_time,
+            label: 'Time',
+            value: _formatTime(),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.timer,
+            label: 'Duration',
+            value: _formatDuration(),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.location_on,
+            label: 'Location',
+            value: widget.session.location,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.group,
+            label: 'Participants',
+            value:
+                '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: widget.session.interactionPreference == 'silent'
+                ? Icons.volume_off
+                : Icons.chat_bubble_outline,
+            label: 'Interaction',
+            value:
+                widget.session.interactionPreference[0].toUpperCase() +
+                widget.session.interactionPreference.substring(1),
+          ),
+          if (widget.session.faculty.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _DetailRow(
+              icon: Icons.school,
+              label: 'Faculty',
+              value: widget.session.faculty,
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          _DetailRow(
+            icon: Icons.star,
+            label: 'Min Rating Required',
+            value: widget.session.minRating.toStringAsFixed(1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(
+    BuildContext context,
+    String currentUid,
+    bool isCreator,
+    bool isOpen,
+  ) {
     final hasJoined = widget.session.participantUids.contains(currentUid);
     final isMatched = widget.session.status == 'matched';
     final isCompleted = widget.session.status == 'completed';
@@ -295,17 +444,20 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            icon: const Icon(Icons.cancel, color: AppColors.errorRed),
-            label: const Text('Cancel Session',
-                style: TextStyle(color: AppColors.errorRed)),
+            icon: Icon(Icons.cancel, color: AppColors.errorRed),
+            label: Text(
+              'Cancel Session',
+              style: TextStyle(color: AppColors.errorRed),
+            ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.errorRed),
+              side: BorderSide(color: AppColors.errorRed),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
             onPressed: () async {
               final provider = context.read<SessionProvider>();
-              final success =
-                  await provider.cancelSession(widget.session.sessionId);
+              final success = await provider.cancelSession(
+                widget.session.sessionId,
+              );
               if (success && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Session cancelled')),
@@ -324,11 +476,13 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            icon: const Icon(Icons.exit_to_app, color: AppColors.errorRed),
-            label: const Text('Leave Session',
-                style: TextStyle(color: AppColors.errorRed)),
+            icon: Icon(Icons.exit_to_app, color: AppColors.errorRed),
+            label: Text(
+              'Leave Session',
+              style: TextStyle(color: AppColors.errorRed),
+            ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.errorRed),
+              side: BorderSide(color: AppColors.errorRed),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
             onPressed: () async {
@@ -354,7 +508,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     }
 
     // Request to Join — for non-creator, non-joined users on sessions with room
-    final hasRoom = widget.session.participantUids.length < widget.session.maxParticipants;
+    final hasRoom =
+        widget.session.participantUids.length < widget.session.maxParticipants;
     if (!isCreator && !hasJoined && (isOpen || (isMatched && hasRoom))) {
       if (_requestSent) {
         final creatorName = _creator?.name ?? widget.session.creatorName;
@@ -365,12 +520,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: AppColors.successGreen),
+                  Icon(Icons.check_circle, color: AppColors.successGreen),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       'Your request has been sent to $creatorName',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.successGreen),
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.successGreen,
+                      ),
                     ),
                   ),
                 ],
@@ -431,7 +588,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final success = await provider.updateSession(updated);
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session completed! Please give feedback.')),
+        const SnackBar(
+          content: Text('Session completed! Please give feedback.'),
+        ),
       );
       context.go(RouteNames.feedback, extra: updated);
     }
@@ -441,50 +600,225 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final messageController = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Request to Join'),
-        content: TextField(
-          controller: messageController,
-          decoration: const InputDecoration(
-            hintText: 'Add a message (optional)',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final provider = context.read<JoinRequestProvider>();
-              final authProvider = context.read<AuthProvider>();
-              final userName = authProvider.currentUser?.name ?? 'Someone';
-              final success = await provider.sendJoinRequest(
-                sessionId: widget.session.sessionId,
-                creatorUid: widget.session.creatorUid,
-                requesterUid: currentUid,
-                requesterName: userName,
-                sessionTitle: widget.session.title,
-                message: messageController.text.trim(),
-              );
-              if (mounted) {
-                if (success) {
-                  setState(() => _requestSent = true);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to send request'),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Premium gradient header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: AppColors.heroGradientCoolToWarm,
                     ),
-                  );
-                }
-              }
-            },
-            child: const Text('Send'),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppSpacing.radiusXl),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.grey200),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.heroIconSurface,
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
+                        ),
+                        child: Icon(
+                          _activityIcon(),
+                          size: 26,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Request to Join',
+                              style: AppTextStyles.headingSmall,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.session.title,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryBlueDark,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Message to host',
+                        style: AppTextStyles.labelLarge.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Tell the host why you want to join (optional)',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextField(
+                        controller: messageController,
+                        decoration: InputDecoration(
+                          hintText: "Hi! I'd love to join your session...",
+                          hintStyle: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textHint,
+                          ),
+                          fillColor: AppColors.grey100,
+                          filled: true,
+                          contentPadding: const EdgeInsets.all(AppSpacing.md),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            borderSide: BorderSide(color: AppColors.grey200),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            borderSide: BorderSide(color: AppColors.grey200),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            borderSide: BorderSide(
+                              color: AppColors.primaryBlue,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: AppColors.grey200),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: AppSpacing.md,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.send_rounded, size: 18),
+                              label: const Text('Send Request'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: AppSpacing.md,
+                                ),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                final provider = context
+                                    .read<JoinRequestProvider>();
+                                final authProvider = context
+                                    .read<AuthProvider>();
+                                final userName =
+                                    authProvider.currentUser?.name ?? 'Someone';
+                                final success = await provider.sendJoinRequest(
+                                  sessionId: widget.session.sessionId,
+                                  creatorUid: widget.session.creatorUid,
+                                  requesterUid: currentUid,
+                                  requesterName: userName,
+                                  sessionTitle: widget.session.title,
+                                  message: messageController.text.trim(),
+                                );
+                                if (mounted) {
+                                  if (success) {
+                                    setState(() => _requestSent = true);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          provider.error ??
+                                              'Failed to send request',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -501,7 +835,20 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   String _formatDate() {
     final d = widget.session.date;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
@@ -536,11 +883,14 @@ class _StatusBadge extends StatelessWidget {
       'open' => (AppColors.successGreenLight, AppColors.successGreen),
       'matched' => (AppColors.primaryBlueLight, AppColors.primaryBlue),
       'completed' => (AppColors.grey100, AppColors.grey600),
-      'cancelled' => (const Color(0xFFFFEBEE), AppColors.errorRed),
+      'cancelled' => (AppColors.errorRedSoft, AppColors.errorRed),
       _ => (AppColors.grey100, AppColors.grey600),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
@@ -553,22 +903,106 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+class _QuickInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _QuickInfoChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.heroPanelStrong,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primaryBlueDark),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            text,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionShell extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _SectionShell({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTextStyles.headingSmall),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: AppSpacing.iconSm, color: AppColors.primaryBlue),
         const SizedBox(width: AppSpacing.sm),
-        Text(label, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
         Flexible(
-          child: Text(value, style: AppTextStyles.labelLarge, textAlign: TextAlign.end),
+          child: Text(
+            value,
+            style: AppTextStyles.labelLarge,
+            textAlign: TextAlign.end,
+          ),
         ),
       ],
     );

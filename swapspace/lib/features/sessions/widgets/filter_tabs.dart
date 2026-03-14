@@ -15,14 +15,7 @@ class FilterTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = [
-      'All',
-      'Study',
-      'Gym',
-      'Football',
-      'Walking',
-      'Other',
-    ];
+    const labels = ['All', 'Study', 'Gym', 'Football', 'Walking', 'Other'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -39,15 +32,29 @@ class FilterTabs extends StatelessWidget {
                   vertical: AppSpacing.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primaryBlue : Colors.white,
+                  color: isSelected ? AppColors.primaryBlue : AppColors.surface,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                  border: isSelected
-                      ? null
-                      : Border.all(color: AppColors.grey200),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primaryBlue
+                        : AppColors.grey200,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primaryBlue.withValues(
+                              alpha: 0.22,
+                            ),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
                   label,
                   style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
                     color: isSelected ? Colors.white : AppColors.textSecondary,
                   ),
                 ),

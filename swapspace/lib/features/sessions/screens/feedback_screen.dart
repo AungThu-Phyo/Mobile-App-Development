@@ -40,19 +40,16 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
     final feedbackProvider = context.read<FeedbackProvider>();
 
-    // All other participant UIDs (everyone except current user)
     final otherUids = widget.session.participantUids
         .where((uid) => uid != currentUid)
         .toList();
 
-    // Check if already submitted for all
     final submitted = await feedbackProvider.hasAllFeedbackSubmitted(
       widget.session.sessionId,
       currentUid,
       otherUids.length,
     );
 
-    // Load all reviewee profiles
     final List<UserModel> reviewees = [];
     for (final uid in otherUids) {
       try {
@@ -90,7 +87,25 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Session Feedback'),
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.warningOrangeLight,
+              ),
+              child: Icon(
+                Icons.rate_review_rounded,
+                size: 18,
+                color: AppColors.warningOrange,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('Session Feedback'),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(RouteNames.home),
@@ -99,8 +114,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _alreadySubmitted
-              ? _buildAlreadySubmitted()
-              : _buildFeedbackForm(),
+          ? _buildAlreadySubmitted()
+          : _buildFeedbackForm(),
     );
   }
 
@@ -108,120 +123,199 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle, size: 72, color: AppColors.successGreen),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Feedback Already Submitted',
-              style: AppTextStyles.headingMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'You have already submitted feedback for this session.',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ElevatedButton(
-              onPressed: () => context.go(RouteNames.home),
-              child: const Text('Back to Home'),
-            ),
-          ],
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 520),
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: AppColors.heroPanelStrong,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(color: AppColors.grey200),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, size: 72, color: AppColors.successGreen),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Feedback Already Submitted',
+                style: AppTextStyles.headingMedium,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'You have already submitted feedback for this session.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton(
+                onPressed: () => context.go(RouteNames.home),
+                child: const Text('Back to Home'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildFeedbackForm() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Session info
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primaryBlueLight,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 920),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: AppColors.heroGradientWarmToCool,
                       ),
-                      child: Icon(
-                        _activityIcon(widget.session.activityType),
-                        size: 20,
-                        color: AppColors.primaryBlue,
-                      ),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      border: Border.all(color: AppColors.grey200),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(widget.session.title, style: AppTextStyles.labelLarge),
-                          Text(
-                            widget.session.activityType[0].toUpperCase() +
-                                widget.session.activityType.substring(1),
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textSecondary),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Wrap up the session',
+                          style: AppTextStyles.headingMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Rate your partners and share whether they showed up. This helps keep SwapSpace reliable.',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.heroPanel,
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusLg,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primaryBlueLight,
+                                ),
+                                child: Icon(
+                                  _activityIcon(widget.session.activityType),
+                                  size: 24,
+                                  color: AppColors.primaryBlue,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.session.title,
+                                      style: AppTextStyles.labelLarge,
+                                    ),
+                                    Text(
+                                      widget.session.activityType[0]
+                                              .toUpperCase() +
+                                          widget.session.activityType.substring(
+                                            1,
+                                          ),
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryBlueLight,
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusFull,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${_reviewees.length} partner${_reviewees.length == 1 ? '' : 's'}',
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.primaryBlueDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text('Rate your partners', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Every rating improves trust for future matches.',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ..._reviewees.map(_buildParticipantCard),
+                  const SizedBox(height: AppSpacing.lg),
+                  Consumer<FeedbackProvider>(
+                    builder: (context, provider, _) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md,
+                            ),
+                          ),
+                          onPressed: !_allRated || provider.isLoading
+                              ? null
+                              : () => _submit(provider),
+                          child: provider.isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  _allRated
+                                      ? 'Submit Feedback'
+                                      : 'Rate all partners to submit',
+                                ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section header
-            Text(
-              'Rate your partners (${_reviewees.length})',
-              style: AppTextStyles.headingSmall,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-
-            // Each participant stacked vertically
-            ..._reviewees.map(_buildParticipantCard),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            // Submit button
-            Consumer<FeedbackProvider>(
-              builder: (context, provider, _) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    ),
-                    onPressed: !_allRated || provider.isLoading
-                        ? null
-                        : () => _submit(provider),
-                    child: provider.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_allRated
-                            ? 'Submit Feedback'
-                            : 'Rate all partners to submit'),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -237,7 +331,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile row with stars beside it
             Row(
               children: [
                 CircleAvatar(
@@ -251,8 +344,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           reviewee.name.isNotEmpty
                               ? reviewee.name[0].toUpperCase()
                               : '?',
-                          style: AppTextStyles.headingSmall
-                              .copyWith(color: AppColors.primaryBlue),
+                          style: AppTextStyles.headingSmall.copyWith(
+                            color: AppColors.primaryBlue,
+                          ),
                         )
                       : null,
                 ),
@@ -265,27 +359,50 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       if (reviewee.faculty.isNotEmpty)
                         Text(
                           reviewee.faculty,
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                     ],
                   ),
                 ),
-                // Current rating badge
-                Column(
-                  children: [
-                    const Icon(Icons.star, color: AppColors.warningOrange, size: 14),
-                    Text(
-                      reviewee.rating.toStringAsFixed(1),
-                      style: AppTextStyles.labelSmall,
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningOrangeLight,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: AppColors.warningOrange,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        reviewee.rating.toStringAsFixed(1),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.warningOrange,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-
-            // Star rating row
+            Text(
+              'How was this partner?',
+              style: AppTextStyles.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
@@ -295,7 +412,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Icon(
-                      starValue <= rating ? Icons.star : Icons.star_border,
+                      starValue <= rating
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
                       size: 36,
                       color: starValue <= rating
                           ? AppColors.warningOrange
@@ -311,21 +430,20 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
                     _ratingLabel(rating),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
-
-            const Divider(height: AppSpacing.lg),
-
-            // Did show up
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Text(
                   'Did they show up?',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const Spacer(),
                 _MiniToggle(
@@ -346,8 +464,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-
-            // Comment
             TextField(
               controller: _commentControllers[uid],
               maxLines: 2,
@@ -369,8 +485,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     bool allSuccess = true;
     for (final reviewee in _reviewees) {
       final feedback = FeedbackModel(
-        feedbackId:
-            '${widget.session.sessionId}_${currentUid}_${reviewee.uid}',
+        feedbackId: '${widget.session.sessionId}_${currentUid}_${reviewee.uid}',
         sessionId: widget.session.sessionId,
         reviewerUid: currentUid,
         revieweeUid: reviewee.uid,
@@ -392,7 +507,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(provider.error ?? 'Failed to submit feedback')),
+            content: Text(provider.error ?? 'Failed to submit feedback'),
+          ),
         );
       }
     }

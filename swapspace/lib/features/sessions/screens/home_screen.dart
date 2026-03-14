@@ -48,16 +48,36 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+    final userName = context.read<AuthProvider>().currentUser?.name ?? 'there';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('SwapSpace', style: AppTextStyles.headingMedium),
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                color: AppColors.primaryBlueLight,
+              ),
+              child: Icon(
+                Icons.explore_rounded,
+                size: 18,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('SwapSpace', style: AppTextStyles.headingMedium),
+          ],
+        ),
         automaticallyImplyLeading: false,
         actions: [
           Consumer2<JoinRequestProvider, NotificationProvider>(
             builder: (context, reqProvider, notiProvider, _) {
-              final count = reqProvider.pendingIncomingCount + notiProvider.unreadCount;
+              final count =
+                  reqProvider.pendingIncomingCount + notiProvider.unreadCount;
               return IconButton(
                 icon: Badge(
                   isLabelVisible: count > 0,
@@ -72,6 +92,35 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: AppColors.heroGradientCoolToWarm,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.grey200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Hi, $userName', style: AppTextStyles.headingSmall),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Find a partner and start your next activity.',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -97,7 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.errorRed),
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: AppColors.errorRed,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         Text(provider.error!, style: AppTextStyles.bodyMedium),
                         const SizedBox(height: AppSpacing.md),
@@ -117,11 +170,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.event_busy, size: 64, color: AppColors.grey400),
+                        Icon(
+                          Icons.event_busy,
+                          size: 64,
+                          color: AppColors.grey400,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           'No sessions available',
-                          style: AppTextStyles.headingSmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.headingSmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
@@ -155,20 +214,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           isOwner: isOwner,
                           onTap: () {
                             provider.selectSession(session);
-                            context.go(RouteNames.sessionDetail, extra: session);
+                            context.go(
+                              RouteNames.sessionDetail,
+                              extra: session,
+                            );
                           },
                           onAction: () {
                             provider.selectSession(session);
                             if (isOwner && _canEdit(session)) {
-                              context.go(RouteNames.editSession, extra: session);
+                              context.go(
+                                RouteNames.editSession,
+                                extra: session,
+                              );
                             } else if (isOwner) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Cannot edit session less than 1 hour before start'),
+                                  content: Text(
+                                    'Cannot edit session less than 1 hour before start',
+                                  ),
                                 ),
                               );
                             } else {
-                              context.go(RouteNames.sessionDetail, extra: session);
+                              context.go(
+                                RouteNames.sessionDetail,
+                                extra: session,
+                              );
                             }
                           },
                         ),
@@ -188,17 +258,19 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppSpacing.radiusXl),
+        ),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.5,
         minChildSize: 0.3,
         maxChildSize: 0.85,
         expand: false,
-        builder: (_, scrollController) => _NotificationsSheet(
-          scrollController: scrollController,
-        ),
+        builder: (_, scrollController) =>
+            _NotificationsSheet(scrollController: scrollController),
       ),
     );
   }
@@ -220,13 +292,16 @@ class _NotificationsSheet extends StatelessWidget {
         children: [
           // Handle bar
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            padding: const EdgeInsets.only(
+              top: AppSpacing.md,
+              bottom: AppSpacing.sm,
+            ),
             child: Container(
-              width: 40,
-              height: 4,
+              width: 48,
+              height: 5,
               decoration: BoxDecoration(
-                color: AppColors.grey400,
-                borderRadius: BorderRadius.circular(2),
+                color: AppColors.grey200,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
               ),
             ),
           ),
@@ -234,20 +309,34 @@ class _NotificationsSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
-                const Text('Notifications', style: AppTextStyles.headingMedium),
+                Text(
+                  'Notifications',
+                  style: AppTextStyles.headingMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 const Spacer(),
                 Consumer2<JoinRequestProvider, NotificationProvider>(
                   builder: (context, reqP, notiP, _) {
                     final count = reqP.pendingIncomingCount + notiP.unreadCount;
                     if (count == 0) return const SizedBox.shrink();
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.errorRed,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusFull,
+                        ),
                       ),
-                      child: Text('$count new',
-                          style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
+                      child: Text(
+                        '$count new',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -255,11 +344,15 @@ class _NotificationsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          const TabBar(
+          TabBar(
             labelColor: AppColors.primaryBlue,
             unselectedLabelColor: AppColors.grey600,
             indicatorColor: AppColors.primaryBlue,
-            tabs: [
+            indicatorWeight: 3,
+            labelStyle: AppTextStyles.labelLarge,
+            unselectedLabelStyle: AppTextStyles.bodyMedium,
+            dividerColor: AppColors.grey200,
+            tabs: const [
               Tab(text: 'Join Requests'),
               Tab(text: 'Updates'),
             ],
@@ -298,8 +391,12 @@ class _JoinRequestsTab extends StatelessWidget {
               children: [
                 Icon(Icons.inbox, size: 48, color: AppColors.grey400),
                 const SizedBox(height: AppSpacing.sm),
-                Text('No pending requests',
-                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
+                Text(
+                  'No pending requests',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           );
@@ -335,10 +432,18 @@ class _AppNotificationsTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.notifications_none, size: 48, color: AppColors.grey400),
+                Icon(
+                  Icons.notifications_none,
+                  size: 48,
+                  color: AppColors.grey400,
+                ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('No notifications yet',
-                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
+                Text(
+                  'No notifications yet',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           );
@@ -366,61 +471,123 @@ class _AppNotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, iconColor) = switch (notification.type) {
-      'request_accepted' => (Icons.check_circle, AppColors.successGreen),
-      'request_rejected' => (Icons.cancel, AppColors.errorRed),
-      'session_updated' => (Icons.edit, AppColors.warningOrange),
-      'participant_left' => (Icons.exit_to_app, AppColors.grey600),
-      _ => (Icons.notifications, AppColors.primaryBlue),
+      'request_accepted' => (
+        Icons.check_circle_rounded,
+        AppColors.successGreen,
+      ),
+      'request_rejected' => (Icons.cancel_rounded, AppColors.errorRed),
+      'session_updated' => (Icons.edit_rounded, AppColors.warningOrange),
+      'participant_left' => (Icons.exit_to_app_rounded, AppColors.grey600),
+      _ => (Icons.notifications_rounded, AppColors.primaryBlue),
     };
 
-    return Card(
-      color: notification.isRead ? Colors.white : AppColors.primaryBlueLight,
-      child: InkWell(
-        onTap: () {
-          if (!notification.isRead) {
-            context.read<NotificationProvider>().markAsRead(notification.notificationId);
-          }
-        },
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.cardPadding),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: iconColor.withValues(alpha: 0.15),
-                child: Icon(icon, size: 20, color: iconColor),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.message,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w600,
-                      ),
+    return InkWell(
+      onTap: () {
+        if (!notification.isRead) {
+          context.read<NotificationProvider>().markAsRead(
+            notification.notificationId,
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      child: Container(
+        decoration: BoxDecoration(
+          color: notification.isRead
+              ? AppColors.surface
+              : AppColors.notifUnreadBg,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(
+            color: notification.isRead
+                ? AppColors.grey200
+                : iconColor.withValues(alpha: 0.4),
+            width: notification.isRead ? 1.0 : 1.5,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!notification.isRead) Container(width: 4, color: iconColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.cardPadding),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: iconColor.withValues(
+                              alpha: notification.isRead ? 0.1 : 0.18,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, size: 20, color: iconColor),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification.message,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontWeight: notification.isRead
+                                      ? FontWeight.normal
+                                      : FontWeight.w600,
+                                  color: notification.isRead
+                                      ? AppColors.textSecondary
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 11,
+                                    color: AppColors.grey400,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _timeAgo(notification.createdAt),
+                                    style: AppTextStyles.captionSmall.copyWith(
+                                      color: AppColors.grey400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!notification.isRead) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Container(
+                            width: 9,
+                            height: 9,
+                            margin: const EdgeInsets.only(top: 5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: iconColor,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: iconColor.withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _timeAgo(notification.createdAt),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.grey600),
-                    ),
-                  ],
-                ),
-              ),
-              if (!notification.isRead)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primaryBlue,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -474,10 +641,19 @@ class _JoinRequestCardState extends State<_JoinRequestCard> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.cardPadding),
-          child: Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: const Center(
+          child: SizedBox(
+            height: 24,
+            width: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
       );
     }
@@ -485,134 +661,219 @@ class _JoinRequestCardState extends State<_JoinRequestCard> {
     final requesterName = _requester?.name ?? 'Someone';
     final sessionTitle = _session?.title ?? 'your session';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Requester row
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primaryBlueLight,
-                  backgroundImage:
-                      _requester != null && _requester!.avatarUrl.isNotEmpty
-                          ? NetworkImage(_requester!.avatarUrl)
-                          : null,
-                  child: _requester == null || _requester!.avatarUrl.isEmpty
-                      ? Text(
-                          requesterName.isNotEmpty ? requesterName[0] : '?',
-                          style: AppTextStyles.labelLarge
-                              .copyWith(color: AppColors.primaryBlue),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: AppTextStyles.bodyMedium,
-                      children: [
-                        TextSpan(
-                          text: requesterName,
-                          style: AppTextStyles.labelLarge,
-                        ),
-                        const TextSpan(text: ' wants to join '),
-                        TextSpan(
-                          text: sessionTitle,
-                          style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryBlue),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: AppColors.primaryBlue.withValues(alpha: 0.22),
+          width: 1.5,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: AppColors.primaryBlue),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.cardPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Requester row
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primaryBlueLight,
+                            backgroundImage:
+                                _requester != null &&
+                                    _requester!.avatarUrl.isNotEmpty
+                                ? NetworkImage(_requester!.avatarUrl)
+                                : null,
+                            child:
+                                _requester == null ||
+                                    _requester!.avatarUrl.isEmpty
+                                ? Text(
+                                    requesterName.isNotEmpty
+                                        ? requesterName[0]
+                                        : '?',
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.bodyMedium,
+                                children: [
+                                  TextSpan(
+                                    text: requesterName,
+                                    style: AppTextStyles.labelLarge,
+                                  ),
+                                  const TextSpan(text: ' wants to join '),
+                                  TextSpan(
+                                    text: sessionTitle,
+                                    style: AppTextStyles.labelLarge.copyWith(
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Message
+                      if (widget.request.message.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryBlueLight.withValues(
+                              alpha: 0.5,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            border: Border(
+                              left: BorderSide(
+                                color: AppColors.primaryBlue,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            '"${widget.request.message}"',
+                            style: AppTextStyles.caption.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
 
-            // Message
-            if (widget.request.message.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: Text(
-                  '"${widget.request.message}"',
-                  style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // Accept / Reject buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: AppColors.errorRed),
+                                foregroundColor: AppColors.errorRed,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd,
+                                  ),
+                                ),
+                              ),
+                              onPressed: _acting
+                                  ? null
+                                  : () async {
+                                      setState(() => _acting = true);
+                                      final provider = context
+                                          .read<JoinRequestProvider>();
+                                      final success = await provider
+                                          .rejectRequest(
+                                            widget.request.requestId,
+                                          );
+                                      if (context.mounted && success) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Request rejected'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                              child: Text(
+                                'Reject',
+                                style: TextStyle(color: AppColors.errorRed),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.successGreen,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd,
+                                  ),
+                                ),
+                              ),
+                              onPressed: _acting
+                                  ? null
+                                  : () async {
+                                      setState(() => _acting = true);
+                                      final provider = context
+                                          .read<JoinRequestProvider>();
+                                      final success = await provider
+                                          .acceptRequest(
+                                            widget.request.requestId,
+                                            widget.request.sessionId,
+                                            widget.request.requesterUid,
+                                          );
+                                      if (context.mounted) {
+                                        if (success) {
+                                          // Refresh home sessions so matched session disappears
+                                          context
+                                              .read<SessionProvider>()
+                                              .loadOpenSessions();
+                                          Navigator.pop(
+                                            context,
+                                          ); // close bottom sheet
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Request accepted!',
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                provider.error ??
+                                                    'Failed to accept request',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              child: const Text('Accept'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Accept / Reject buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.errorRed),
-                    ),
-                    onPressed: _acting
-                        ? null
-                        : () async {
-                            setState(() => _acting = true);
-                            final provider = context.read<JoinRequestProvider>();
-                            final success = await provider.rejectRequest(widget.request.requestId);
-                            if (context.mounted && success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Request rejected')),
-                              );
-                            }
-                          },
-                    child: const Text('Reject', style: TextStyle(color: AppColors.errorRed)),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.successGreen,
-                    ),
-                    onPressed: _acting
-                        ? null
-                        : () async {
-                            setState(() => _acting = true);
-                            final provider = context.read<JoinRequestProvider>();
-                            final success = await provider.acceptRequest(
-                              widget.request.requestId,
-                              widget.request.sessionId,
-                              widget.request.requesterUid,
-                            );
-                            if (context.mounted) {
-                              if (success) {
-                                // Refresh home sessions so matched session disappears
-                                context.read<SessionProvider>().loadOpenSessions();
-                                Navigator.pop(context); // close bottom sheet
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Request accepted!')),
-                                );
-                              } else {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(provider.error ?? 'Failed to accept request'),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    child: const Text('Accept'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );

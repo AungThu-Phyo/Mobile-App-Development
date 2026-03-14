@@ -4,12 +4,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/join_request_model.dart';
-import '../../../models/user_model.dart';
 import '../../../models/session_model.dart';
+import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/join_request_provider.dart';
-import '../../../repositories/user_repository.dart';
 import '../../../repositories/session_repository.dart';
+import '../../../repositories/user_repository.dart';
 
 class RequestsScreen extends StatefulWidget {
   const RequestsScreen({super.key});
@@ -48,62 +48,147 @@ class _RequestsScreenState extends State<RequestsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Requests', style: AppTextStyles.headingMedium),
-        automaticallyImplyLeading: false,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primaryBlue,
-          unselectedLabelColor: AppColors.grey600,
-          indicatorColor: AppColors.primaryBlue,
-          tabs: [
-            Consumer<JoinRequestProvider>(
-              builder: (context, provider, _) {
-                final count = provider.pendingIncomingCount;
-                return Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Incoming'),
-                      if (count > 0) ...[
-                        const SizedBox(width: AppSpacing.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.errorRed,
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusFull),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: AppTextStyles.labelSmall
-                                .copyWith(color: Colors.white, fontSize: 10),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.primaryBlueLight,
+              ),
+              child: Icon(
+                Icons.mail_outline_rounded,
+                size: 18,
+                color: AppColors.primaryBlue,
+              ),
             ),
-            const Tab(text: 'Outgoing'),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('Requests', style: AppTextStyles.headingMedium),
           ],
         ),
+        automaticallyImplyLeading: false,
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _IncomingTab(onRefresh: _loadData),
-          _OutgoingTab(onRefresh: _loadData),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: AppColors.heroGradientCoolToWarm,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.grey200),
+              ),
+              child: Text(
+                'Manage people who want to join your sessions and track the requests you already sent.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.grey100,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: Colors.white,
+                unselectedLabelColor: AppColors.grey600,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.all(4),
+                labelPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                ),
+                indicator: BoxDecoration(
+                  color: AppColors.primaryBlue,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                ),
+                tabs: [
+                  Consumer<JoinRequestProvider>(
+                    builder: (context, provider, _) {
+                      final count = provider.pendingIncomingCount;
+                      return Tab(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.xs,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Incoming'),
+                              if (count > 0) ...[
+                                const SizedBox(width: AppSpacing.xs),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.errorRed,
+                                    borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusFull,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const Tab(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text('Outgoing'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _IncomingTab(onRefresh: _loadData),
+                _OutgoingTab(onRefresh: _loadData),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
-
-// =============================================================================
-// Incoming Tab
-// =============================================================================
 
 class _IncomingTab extends StatelessWidget {
   final VoidCallback onRefresh;
@@ -118,25 +203,11 @@ class _IncomingTab extends StatelessWidget {
         }
 
         if (provider.incomingRequests.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox, size: 64, color: AppColors.grey400),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'No incoming requests',
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'When someone wants to join your session,\nit will appear here.',
-                  style: AppTextStyles.caption,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+          return const _EmptyRequestsState(
+            icon: Icons.inbox_rounded,
+            title: 'No incoming requests',
+            subtitle:
+                'When someone wants to join your session, it will appear here.',
           );
         }
 
@@ -194,6 +265,7 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Card(
+        margin: EdgeInsets.only(bottom: AppSpacing.sm),
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.cardPadding),
           child: Center(child: CircularProgressIndicator()),
@@ -210,32 +282,41 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Session title
             if (_session != null)
-              Text(
-                _session!.title,
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.primaryBlue),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlueLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                ),
+                child: Text(
+                  _session!.title,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryBlueDark,
+                  ),
+                ),
               ),
             const SizedBox(height: AppSpacing.sm),
-
-            // Requester info
             Row(
               children: [
                 CircleAvatar(
-                  radius: 20,
+                  radius: 22,
                   backgroundColor: AppColors.primaryBlueLight,
                   backgroundImage:
                       _requester != null && _requester!.avatarUrl.isNotEmpty
-                          ? NetworkImage(_requester!.avatarUrl)
-                          : null,
+                      ? NetworkImage(_requester!.avatarUrl)
+                      : null,
                   child: _requester == null || _requester!.avatarUrl.isEmpty
                       ? Text(
                           _requester?.name.isNotEmpty == true
                               ? _requester!.name[0]
                               : '?',
-                          style: AppTextStyles.labelLarge
-                              .copyWith(color: AppColors.primaryBlue),
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: AppColors.primaryBlue,
+                          ),
                         )
                       : null,
                 ),
@@ -249,24 +330,39 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
                         style: AppTextStyles.labelLarge,
                       ),
                       if (_requester?.faculty.isNotEmpty == true)
-                        Text(
-                          _requester!.faculty,
-                          style: AppTextStyles.caption,
-                        ),
+                        Text(_requester!.faculty, style: AppTextStyles.caption),
                     ],
                   ),
                 ),
-                const Icon(Icons.star,
-                    color: AppColors.warningOrange, size: 14),
-                const SizedBox(width: 2),
-                Text(
-                  (_requester?.rating ?? 0).toStringAsFixed(1),
-                  style: AppTextStyles.labelLarge,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningOrangeLight,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: AppColors.warningOrange,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        (_requester?.rating ?? 0).toStringAsFixed(1),
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.warningOrange,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-
-            // Message
             if (widget.request.message.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Container(
@@ -274,7 +370,7 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
                 child: Text(
                   widget.request.message,
@@ -282,30 +378,30 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
                 ),
               ),
             ],
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Action buttons
+            const SizedBox(height: AppSpacing.md),
             if (sessionOpen)
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.errorRed),
+                        side: BorderSide(color: AppColors.errorRed),
                       ),
                       onPressed: () async {
                         final provider = context.read<JoinRequestProvider>();
-                        final success =
-                            await provider.rejectRequest(widget.request.requestId);
+                        final success = await provider.rejectRequest(
+                          widget.request.requestId,
+                        );
                         if (success && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Request rejected')),
                           );
                         }
                       },
-                      child: const Text('Reject',
-                          style: TextStyle(color: AppColors.errorRed)),
+                      child: Text(
+                        'Reject',
+                        style: TextStyle(color: AppColors.errorRed),
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -321,7 +417,8 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
                         if (success && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Request accepted — matched!')),
+                              content: Text('Request accepted — matched!'),
+                            ),
                           );
                         }
                       },
@@ -331,15 +428,12 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
                 ],
               )
             else
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              Center(
                 child: Text(
                   'Session no longer open',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.grey600),
-                  textAlign: TextAlign.center,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.grey600,
+                  ),
                 ),
               ),
           ],
@@ -348,10 +442,6 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
     );
   }
 }
-
-// =============================================================================
-// Outgoing Tab
-// =============================================================================
 
 class _OutgoingTab extends StatelessWidget {
   final VoidCallback onRefresh;
@@ -366,25 +456,11 @@ class _OutgoingTab extends StatelessWidget {
         }
 
         if (provider.outgoingRequests.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.send, size: 64, color: AppColors.grey400),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'No outgoing requests',
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'When you request to join a session,\nit will appear here.',
-                  style: AppTextStyles.caption,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+          return const _EmptyRequestsState(
+            icon: Icons.send_rounded,
+            title: 'No outgoing requests',
+            subtitle:
+                'When you request to join a session, it will appear here.',
           );
         }
 
@@ -440,6 +516,7 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Card(
+        margin: EdgeInsets.only(bottom: AppSpacing.sm),
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.cardPadding),
           child: Center(child: CircularProgressIndicator()),
@@ -456,7 +533,6 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Session title + status badge
             Row(
               children: [
                 Expanded(
@@ -469,24 +545,24 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-
-            // Creator info
             Row(
               children: [
                 CircleAvatar(
-                  radius: 14,
+                  radius: 16,
                   backgroundColor: AppColors.primaryBlueLight,
                   backgroundImage:
                       _creator != null && _creator!.avatarUrl.isNotEmpty
-                          ? NetworkImage(_creator!.avatarUrl)
-                          : null,
+                      ? NetworkImage(_creator!.avatarUrl)
+                      : null,
                   child: _creator == null || _creator!.avatarUrl.isEmpty
                       ? Text(
                           _creator?.name.isNotEmpty == true
                               ? _creator!.name[0]
                               : '?',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.primaryBlue),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primaryBlue,
+                          ),
                         )
                       : null,
                 ),
@@ -497,41 +573,82 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
                 ),
               ],
             ),
-
-            // Message
             if (widget.request.message.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
                 '"${widget.request.message}"',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
-
-            // Cancel button
             if (isPending) ...[
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.errorRed),
+                    side: BorderSide(color: AppColors.errorRed),
                   ),
                   onPressed: () async {
                     final provider = context.read<JoinRequestProvider>();
-                    final success = await provider
-                        .cancelJoinRequest(widget.request.requestId);
+                    final success = await provider.cancelJoinRequest(
+                      widget.request.requestId,
+                    );
                     if (success && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Request cancelled')),
                       );
                     }
                   },
-                  child: const Text('Cancel Request',
-                      style: TextStyle(color: AppColors.errorRed)),
+                  child: Text(
+                    'Cancel Request',
+                    style: TextStyle(color: AppColors.errorRed),
+                  ),
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyRequestsState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _EmptyRequestsState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: AppColors.grey400),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              style: AppTextStyles.headingSmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              subtitle,
+              style: AppTextStyles.caption,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -555,7 +672,9 @@ class _RequestStatusBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppSpacing.radiusFull),

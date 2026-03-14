@@ -125,34 +125,59 @@ class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
       bottomNavigationBar: Consumer<JoinRequestProvider>(
         builder: (context, requestProvider, _) {
           final badgeCount = requestProvider.pendingIncomingCount;
-          return BottomNavigationBar(
-            currentIndex: index,
-            type: BottomNavigationBarType.fixed,
-            onTap: (i) {
-              switch (i) {
-                case 0:
-                  context.go(RouteNames.home);
-                case 1:
-                  context.go(RouteNames.createSession);
-                case 2:
-                  context.go(RouteNames.requests);
-                case 3:
-                  context.go(RouteNames.profile);
-              }
-            },
-            items: [
-              const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-              const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
-              BottomNavigationBarItem(
-                icon: Badge(
-                  isLabelVisible: badgeCount > 0,
-                  label: Text('$badgeCount'),
-                  child: const Icon(Icons.mail_outline),
+          return Container(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x17000000),
+                  blurRadius: 18,
+                  offset: Offset(0, -4),
                 ),
-                label: 'Requests',
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
               ),
-              const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-            ],
+              child: BottomNavigationBar(
+                currentIndex: index,
+                onTap: (i) {
+                  switch (i) {
+                    case 0:
+                      context.go(RouteNames.home);
+                    case 1:
+                      context.go(RouteNames.createSession);
+                    case 2:
+                      context.go(RouteNames.requests);
+                    case 3:
+                      context.go(RouteNames.profile);
+                  }
+                },
+                items: [
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.add_circle_rounded),
+                    label: 'Create',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Badge(
+                      isLabelVisible: badgeCount > 0,
+                      label: Text('$badgeCount'),
+                      child: const Icon(Icons.mail_outline_rounded),
+                    ),
+                    label: 'Requests',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.person_rounded),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),

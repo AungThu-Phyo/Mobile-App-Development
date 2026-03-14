@@ -130,7 +130,20 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
   }
 
   String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
@@ -146,9 +159,9 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
       hintText: hint,
       prefixIcon: prefix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.surface,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         borderSide: BorderSide.none,
       ),
     );
@@ -159,339 +172,532 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Create Session'),
+        title: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.primaryBlueLight,
+              ),
+              child: Icon(
+                Icons.add_circle_rounded,
+                size: 18,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Text('Create Session'),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(RouteNames.home),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Activity Type
-              const Text('Activity Type', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              DropdownButtonFormField<String>(
-                value: _activityType,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                items: _activityTypes.map((t) {
-                  return DropdownMenuItem(
-                    value: t,
-                    child: Text(t[0].toUpperCase() + t.substring(1)),
-                  );
-                }).toList(),
-                onChanged: (v) => setState(() => _activityType = v!),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Title
-              const Text('Title', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Study for Math Exam',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Title is required' : null,
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Description
-              const Text('Description', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Describe your session...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Location
-              const Text('Location', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. MFU Library Floor 2',
-                  prefixIcon: const Icon(Icons.location_on, color: AppColors.primaryBlue),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Location is required' : null,
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Date
-              const Text('Date', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              GestureDetector(
-                onTap: _pickDate,
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                  child: Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.calendar_today, color: AppColors.primaryBlue),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(_formatDate(_selectedDate), style: AppTextStyles.bodyMedium),
-                      const Spacer(),
-                      const Icon(Icons.arrow_drop_down, color: AppColors.grey600),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Time
-              const Text('Start Time', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              GestureDetector(
-                onTap: _pickTime,
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.access_time, color: AppColors.primaryBlue),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(_formatTime(_selectedTime), style: AppTextStyles.bodyMedium),
-                      const Spacer(),
-                      const Icon(Icons.arrow_drop_down, color: AppColors.grey600),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Duration (Days + Hours + Minutes)
-              const Text('Duration', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _daysController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _MaxValueFormatter(30),
-                      ],
-                      decoration: _fieldDecor(hint: 'Days'),
-                      validator: (v) {
-                        final d = int.tryParse(v ?? '') ?? 0;
-                        final h = int.tryParse(_hoursController.text) ?? 0;
-                        final m = int.tryParse(_minutesController.text) ?? 0;
-                        if (d == 0 && h == 0 && m == 0) return 'Required';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _hoursController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _MaxValueFormatter(23),
-                      ],
-                      decoration: _fieldDecor(hint: 'Hours', prefix: const Icon(Icons.schedule, color: AppColors.primaryBlue)),
-                      validator: (v) {
-                        final d = int.tryParse(_daysController.text) ?? 0;
-                        final h = int.tryParse(v ?? '') ?? 0;
-                        final m = int.tryParse(_minutesController.text) ?? 0;
-                        if (d == 0 && h == 0 && m == 0) return 'Required';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _minutesController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _MaxValueFormatter(59),
-                      ],
-                      decoration: _fieldDecor(hint: 'Minutes'),
-                      validator: (v) {
-                        final m = int.tryParse(v ?? '') ?? 0;
-                        if (m >= 60) return 'Max 59';
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Max Participants
-              const Text('Max Participants', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _participantsController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  _MaxValueFormatter(50),
-                ],
-                decoration: _fieldDecor(hint: 'e.g. 2', prefix: const Icon(Icons.group, color: AppColors.primaryBlue)),
-                validator: (v) {
-                  final n = int.tryParse(v ?? '') ?? 0;
-                  if (n < 2) return 'At least 2';
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Minimum Rating
-              const Text('Minimum Rating', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: _minRating,
-                      min: 0,
-                      max: 5,
-                      divisions: 10,
-                      label: _minRating.toStringAsFixed(1),
-                      activeColor: AppColors.primaryBlue,
-                      onChanged: (v) => setState(() => _minRating = v),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 18),
-                        const SizedBox(width: 4),
-                        Text(_minRating.toStringAsFixed(1), style: AppTextStyles.bodyMedium),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Interaction Preference
-              const Text('Interaction Preference', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: ['silent', 'social'].map((pref) {
-                  final selected = _interactionPreference == pref;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: pref == 'silent' ? AppSpacing.sm : 0),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _interactionPreference = pref),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.primaryBlue : Colors.white,
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            border: selected ? null : Border.all(color: AppColors.grey200),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: AppColors.heroGradientCoolToWarm,
                           ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                pref == 'silent' ? Icons.volume_off : Icons.chat_bubble_outline,
-                                size: 18,
-                                color: selected ? Colors.white : AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                pref[0].toUpperCase() + pref.substring(1),
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  color: selected ? Colors.white : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusLg,
                           ),
+                          border: Border.all(color: AppColors.grey200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Create a new session',
+                              style: AppTextStyles.headingMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Set up the activity, timing, and preferences so the right people can join.',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Faculty (optional)
-              const Text('Faculty (optional)', style: AppTextStyles.labelLarge),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _facultyController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Science, Engineering',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    borderSide: BorderSide.none,
+                      const SizedBox(height: AppSpacing.lg),
+                      _FormSection(
+                        title: 'Basics',
+                        subtitle: 'What the session is about.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Activity Type',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            DropdownButtonFormField<String>(
+                              value: _activityType,
+                              decoration: _fieldDecor(),
+                              items: _activityTypes.map((t) {
+                                return DropdownMenuItem(
+                                  value: t,
+                                  child: Text(
+                                    t[0].toUpperCase() + t.substring(1),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (v) =>
+                                  setState(() => _activityType = v!),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Title',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _titleController,
+                              decoration: _fieldDecor(
+                                hint: 'e.g. Study for Math Exam',
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'Title is required'
+                                  : null,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Description',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _descriptionController,
+                              maxLines: 3,
+                              decoration: _fieldDecor(
+                                hint: 'Describe your session...',
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Location',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _locationController,
+                              decoration: _fieldDecor(
+                                hint: 'e.g. MFU Library Floor 2',
+                                prefix: Icon(
+                                  Icons.location_on,
+                                  color: AppColors.primaryBlue,
+                                ),
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'Location is required'
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _FormSection(
+                        title: 'Schedule',
+                        subtitle: 'When it happens and how long it lasts.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Date', style: AppTextStyles.labelLarge),
+                            const SizedBox(height: AppSpacing.sm),
+                            _PickerTile(
+                              icon: Icons.calendar_today,
+                              label: _formatDate(_selectedDate),
+                              onTap: _pickDate,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Start Time',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _PickerTile(
+                              icon: Icons.access_time,
+                              label: _formatTime(_selectedTime),
+                              onTap: _pickTime,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Duration',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _daysController,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      _MaxValueFormatter(30),
+                                    ],
+                                    decoration: _fieldDecor(hint: 'Days'),
+                                    validator: (v) {
+                                      final d = int.tryParse(v ?? '') ?? 0;
+                                      final h =
+                                          int.tryParse(_hoursController.text) ??
+                                          0;
+                                      final m =
+                                          int.tryParse(
+                                            _minutesController.text,
+                                          ) ??
+                                          0;
+                                      if (d == 0 && h == 0 && m == 0)
+                                        return 'Required';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _hoursController,
+                                    keyboardType: TextInputType.number,
+                                    cursorColor: AppColors.primaryBlueDark,
+                                    style: AppTextStyles.bodyLarge,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      _MaxValueFormatter(23),
+                                    ],
+                                    decoration: _fieldDecor(
+                                      hint: 'Hours',
+                                      prefix: Icon(
+                                        Icons.schedule,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                    validator: (v) {
+                                      final d =
+                                          int.tryParse(_daysController.text) ??
+                                          0;
+                                      final h = int.tryParse(v ?? '') ?? 0;
+                                      final m =
+                                          int.tryParse(
+                                            _minutesController.text,
+                                          ) ??
+                                          0;
+                                      if (d == 0 && h == 0 && m == 0)
+                                        return 'Required';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _minutesController,
+                                    keyboardType: TextInputType.number,
+                                    cursorColor: AppColors.primaryBlueDark,
+                                    style: AppTextStyles.bodyLarge,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      _MaxValueFormatter(59),
+                                    ],
+                                    decoration: _fieldDecor(hint: 'Minutes'),
+                                    validator: (v) {
+                                      final m = int.tryParse(v ?? '') ?? 0;
+                                      if (m >= 60) return 'Max 59';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Max Participants',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _participantsController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                _MaxValueFormatter(50),
+                              ],
+                              decoration: _fieldDecor(
+                                hint: 'e.g. 2',
+                                prefix: Icon(
+                                  Icons.group,
+                                  color: AppColors.primaryBlue,
+                                ),
+                              ),
+                              validator: (v) {
+                                final n = int.tryParse(v ?? '') ?? 0;
+                                if (n < 2) return 'At least 2';
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _FormSection(
+                        title: 'Preferences',
+                        subtitle: 'Choose who this session is best suited for.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Minimum Rating',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: _minRating,
+                                    min: 0,
+                                    max: 5,
+                                    divisions: 10,
+                                    label: _minRating.toStringAsFixed(1),
+                                    activeColor: AppColors.primaryBlue,
+                                    onChanged: (v) =>
+                                        setState(() => _minRating = v),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.xs,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusLg,
+                                    ),
+                                    border: Border.all(
+                                      color: AppColors.grey200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        color: Colors.amber,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _minRating.toStringAsFixed(1),
+                                        style: AppTextStyles.bodyMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Interaction Preference',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: ['silent', 'social'].map((pref) {
+                                final selected = _interactionPreference == pref;
+                                return Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      right: pref == 'silent'
+                                          ? AppSpacing.sm
+                                          : 0,
+                                    ),
+                                    child: GestureDetector(
+                                      onTap: () => setState(
+                                        () => _interactionPreference = pref,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: AppSpacing.md,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: selected
+                                              ? AppColors.primaryBlue
+                                              : AppColors.surface,
+                                          borderRadius: BorderRadius.circular(
+                                            AppSpacing.radiusLg,
+                                          ),
+                                          border: Border.all(
+                                            color: selected
+                                                ? AppColors.primaryBlue
+                                                : AppColors.grey200,
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              pref == 'silent'
+                                                  ? Icons.volume_off
+                                                  : Icons.chat_bubble_outline,
+                                              size: 18,
+                                              color: selected
+                                                  ? Colors.white
+                                                  : AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(
+                                              width: AppSpacing.xs,
+                                            ),
+                                            Text(
+                                              pref[0].toUpperCase() +
+                                                  pref.substring(1),
+                                              style: AppTextStyles.labelLarge
+                                                  .copyWith(
+                                                    color: selected
+                                                        ? Colors.white
+                                                        : AppColors
+                                                              .textSecondary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Faculty (optional)',
+                              style: AppTextStyles.labelLarge,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _facultyController,
+                              decoration: _fieldDecor(
+                                hint: 'e.g. Science, Engineering',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submit,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Post Session'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-              // Submit
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Post Session'),
-                ),
+class _FormSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _FormSection({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTextStyles.headingSmall),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _PickerTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primaryBlue),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: AppTextStyles.bodyMedium),
+            const Spacer(),
+            Icon(Icons.arrow_drop_down, color: AppColors.grey600),
+          ],
         ),
       ),
     );
@@ -505,11 +711,12 @@ class _MaxValueFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     if (newValue.text.isEmpty) return newValue;
     final value = int.tryParse(newValue.text);
     if (value == null || value > max) return oldValue;
     return newValue;
   }
 }
-
