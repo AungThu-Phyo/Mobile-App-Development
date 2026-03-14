@@ -196,67 +196,87 @@ class SessionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        children: [
-                          const Spacer(),
-                          if (session.status == 'matched')
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.xs,
-                              ),
-                              margin: const EdgeInsets.only(
-                                right: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.successGreenLight,
-                                borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusFull,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            if (session.status == 'matched')
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.successGreenLight,
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusFull,
+                                  ),
+                                ),
+                                child: Text(
+                                  'MATCHED',
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.successGreen,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                'MATCHED',
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: AppColors.successGreen,
+                            if (session.status == 'completed')
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.grey100,
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusFull,
+                                  ),
+                                ),
+                                child: Text(
+                                  'COMPLETED',
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.grey600,
+                                  ),
+                                ),
+                              ),
+                            SizedBox(
+                              height: 36,
+                              child: ElevatedButton(
+                                onPressed: onAction,
+                                style:
+                                    (isOwner
+                                            ? ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    AppColors.warningOrange,
+                                                foregroundColor: Colors.white,
+                                              )
+                                            : ElevatedButton.styleFrom())
+                                        .copyWith(
+                                          minimumSize:
+                                              const WidgetStatePropertyAll(
+                                                Size(92, 36),
+                                              ),
+                                          padding: const WidgetStatePropertyAll(
+                                            EdgeInsets.symmetric(
+                                              horizontal: AppSpacing.md,
+                                            ),
+                                          ),
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                child: Text(
+                                  isOwner ? 'Update' : 'View',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.visible,
+                                  softWrap: false,
                                 ),
                               ),
                             ),
-                          if (session.status == 'completed')
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.xs,
-                              ),
-                              margin: const EdgeInsets.only(
-                                right: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.grey100,
-                                borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusFull,
-                                ),
-                              ),
-                              child: Text(
-                                'COMPLETED',
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: AppColors.grey600,
-                                ),
-                              ),
-                            ),
-                          SizedBox(
-                            height: 36,
-                            child: ElevatedButton(
-                              onPressed: onAction,
-                              style: isOwner
-                                  ? ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.warningOrange,
-                                      foregroundColor: Colors.white,
-                                    )
-                                  : null,
-                              child: Text(isOwner ? 'Update' : 'View'),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

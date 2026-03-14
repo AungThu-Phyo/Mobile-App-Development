@@ -167,6 +167,15 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     );
   }
 
+  InputDecoration _durationFieldDecor(String hint) {
+    return _fieldDecor(hint: hint).copyWith(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -352,11 +361,14 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
                                   child: TextFormField(
                                     controller: _daysController,
                                     keyboardType: TextInputType.number,
+                                    cursorColor: AppColors.primaryBlueDark,
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.bodyLarge,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly,
                                       _MaxValueFormatter(30),
                                     ],
-                                    decoration: _fieldDecor(hint: 'Days'),
+                                    decoration: _durationFieldDecor('Days'),
                                     validator: (v) {
                                       final d = int.tryParse(v ?? '') ?? 0;
                                       final h =
@@ -379,18 +391,13 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
                                     controller: _hoursController,
                                     keyboardType: TextInputType.number,
                                     cursorColor: AppColors.primaryBlueDark,
+                                    textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyLarge,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly,
                                       _MaxValueFormatter(23),
                                     ],
-                                    decoration: _fieldDecor(
-                                      hint: 'Hours',
-                                      prefix: Icon(
-                                        Icons.schedule,
-                                        color: AppColors.primaryBlue,
-                                      ),
-                                    ),
+                                    decoration: _durationFieldDecor('Hours'),
                                     validator: (v) {
                                       final d =
                                           int.tryParse(_daysController.text) ??
@@ -413,12 +420,13 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
                                     controller: _minutesController,
                                     keyboardType: TextInputType.number,
                                     cursorColor: AppColors.primaryBlueDark,
+                                    textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyLarge,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly,
                                       _MaxValueFormatter(59),
                                     ],
-                                    decoration: _fieldDecor(hint: 'Minutes'),
+                                    decoration: _durationFieldDecor('Minutes'),
                                     validator: (v) {
                                       final m = int.tryParse(v ?? '') ?? 0;
                                       if (m >= 60) return 'Max 59';
