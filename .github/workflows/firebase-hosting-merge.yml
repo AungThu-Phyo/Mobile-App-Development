@@ -21,7 +21,7 @@ jobs:
       - run: flutter pub get
         working-directory: swapspace
 
-      - run: flutter build web
+      - run: flutter build web --pwa-strategy=none
         working-directory: swapspace
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
