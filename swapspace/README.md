@@ -9,6 +9,21 @@ A new Flutter project.
 3. Keep `.env` out of git; it is already listed in `.gitignore`.
 4. Run `flutter pub get` and then `flutter run`.
 
+## CI/CD Auto Deploy
+
+This repository is configured to auto-deploy from GitHub workflow runs on push.
+
+Recommended pre-push checks:
+
+1. Run `flutter pub get`
+2. Run `flutter test --no-pub`
+3. Run `flutter build web --pwa-strategy=none`
+
+Notes:
+
+- The `--pwa-strategy` flag is currently deprecated in Flutter and may be removed in a future release.
+- Ensure `.env` exists in the project root because it is declared as a Flutter asset in `pubspec.yaml`.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
