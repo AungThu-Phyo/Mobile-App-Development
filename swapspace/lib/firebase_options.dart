@@ -89,9 +89,10 @@ class DefaultFirebaseOptions {
 
   static String _required(String key) {
     final value = dotenv.env[key]?.trim();
-    if (value == null || value.isEmpty) {
+    final isPlaceholder = value != null && value.startsWith('your-');
+    if (value == null || value.isEmpty || isPlaceholder) {
       throw StateError(
-        'Missing $key in .env. Copy .env.example to .env and add Firebase values.',
+        'Missing or placeholder value for $key. Create swapspace/.env from .env.example and set real Firebase values.',
       );
     }
 

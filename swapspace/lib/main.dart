@@ -29,7 +29,7 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  await _loadEnvironmentVariables();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _activateAppCheck();
 
@@ -96,6 +96,14 @@ void main() async {
   );
 }
 
+Future<void> _loadEnvironmentVariables() async {
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Skipping .env asset load: $e');
+  }
+}
+
 Future<void> _activateAppCheck() async {
   if (kIsWeb) {
     // Web App Check needs a reCAPTCHA provider; skip to avoid breaking local web debug.
@@ -104,9 +112,13 @@ Future<void> _activateAppCheck() async {
 
   try {
     await FirebaseAppCheck.instance.activate(
-      androidProvider:
-          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+      providerAndroid:
+          kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+        ? const AppleDebugProvider()
+        : const AppleAppAttestProvider(),
     );
   } catch (e) {
     debugPrint('Firebase App Check activation skipped: $e');
