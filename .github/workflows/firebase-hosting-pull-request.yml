@@ -1,5 +1,3 @@
-# Deploy to Firebase Hosting on PR (Flutter project)
-
 name: Deploy to Firebase Hosting on PR
 
 on: pull_request
@@ -27,6 +25,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         working-directory: swapspace
+
+      # 🔥 Create .env file (FIX)
+      - name: Create .env file
+        working-directory: swapspace
+        run: |
+          echo "API_URL=${{ secrets.API_URL }}" >> .env
+          echo "STRIPE_KEY=${{ secrets.STRIPE_KEY }}" >> .env
+          echo "SOME_CONFIG=${{ secrets.SOME_CONFIG }}" >> .env
 
       - name: Build Flutter Web
         run: flutter build web --pwa-strategy=none
