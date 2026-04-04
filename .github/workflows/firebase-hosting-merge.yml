@@ -24,35 +24,22 @@ jobs:
       # Create .env file for web runtime config
       - name: Create .env file
         working-directory: swapspace
+        env:
+          WEB_SECRET: ${{ secrets.Web }}
         run: |
-          if [ -n "${{ secrets.Web }}" ]; then
-            printf "%s\n" "${{ secrets.Web }}" > .env
-          else
-            cat > .env << 'EOF'
-            FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}
-            FIREBASE_WEB_APP_ID=${{ secrets.FIREBASE_WEB_APP_ID }}
-            FIREBASE_WEB_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_WEB_MESSAGING_SENDER_ID }}
-            FIREBASE_WEB_PROJECT_ID=${{ secrets.FIREBASE_WEB_PROJECT_ID }}
-            FIREBASE_WEB_AUTH_DOMAIN=${{ secrets.FIREBASE_WEB_AUTH_DOMAIN }}
-            FIREBASE_WEB_STORAGE_BUCKET=${{ secrets.FIREBASE_WEB_STORAGE_BUCKET }}
-            FIREBASE_WEB_MEASUREMENT_ID=${{ secrets.FIREBASE_WEB_MEASUREMENT_ID }}
-            EOF
-          fi
+          test -n "$WEB_SECRET" || (echo "Missing Web secret" && exit 1)
+          printf "%s\n" "$WEB_SECRET" > .env
 
       - name: Validate required Firebase web secrets
         working-directory: swapspace
+        env:
+          WEB_SECRET: ${{ secrets.Web }}
         run: |
-          if [ -n "${{ secrets.Web }}" ]; then
-            grep -q '^FIREBASE_WEB_API_KEY=' .env || (echo "Missing FIREBASE_WEB_API_KEY in Web secret" && exit 1)
-            grep -q '^FIREBASE_WEB_APP_ID=' .env || (echo "Missing FIREBASE_WEB_APP_ID in Web secret" && exit 1)
-            grep -q '^FIREBASE_WEB_MESSAGING_SENDER_ID=' .env || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID in Web secret" && exit 1)
-            grep -q '^FIREBASE_WEB_PROJECT_ID=' .env || (echo "Missing FIREBASE_WEB_PROJECT_ID in Web secret" && exit 1)
-          else
-            test -n "${{ secrets.FIREBASE_WEB_API_KEY }}" || (echo "Missing FIREBASE_WEB_API_KEY secret" && exit 1)
-            test -n "${{ secrets.FIREBASE_WEB_APP_ID }}" || (echo "Missing FIREBASE_WEB_APP_ID secret" && exit 1)
-            test -n "${{ secrets.FIREBASE_WEB_MESSAGING_SENDER_ID }}" || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID secret" && exit 1)
-            test -n "${{ secrets.FIREBASE_WEB_PROJECT_ID }}" || (echo "Missing FIREBASE_WEB_PROJECT_ID secret" && exit 1)
-          fi
+          test -n "$WEB_SECRET" || (echo "Missing Web secret" && exit 1)
+          grep -q '^FIREBASE_WEB_API_KEY=' .env || (echo "Missing FIREBASE_WEB_API_KEY in Web secret" && exit 1)
+          grep -q '^FIREBASE_WEB_APP_ID=' .env || (echo "Missing FIREBASE_WEB_APP_ID in Web secret" && exit 1)
+          grep -q '^FIREBASE_WEB_MESSAGING_SENDER_ID=' .env || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID in Web secret" && exit 1)
+          grep -q '^FIREBASE_WEB_PROJECT_ID=' .env || (echo "Missing FIREBASE_WEB_PROJECT_ID in Web secret" && exit 1)
 
       # Build web
       - run: flutter build web --pwa-strategy=none
