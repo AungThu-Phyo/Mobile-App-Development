@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/constants/session_constants.dart';
 
 class SessionModel {
   final String sessionId;
@@ -32,11 +33,11 @@ class SessionModel {
     required this.location,
     required this.date,
     this.durationMinutes = 60,
-    this.interactionPreference = 'social',
-    this.status = 'open',
+    this.interactionPreference = SessionConstants.defaultInteractionPreference,
+    this.status = SessionStatus.open,
     this.faculty = '',
     this.isActive = true,
-    this.maxParticipants = 2,
+    this.maxParticipants = SessionRules.defaultMaxParticipants,
     this.participantUids = const [],
     this.minRating = 0.0,
     required this.createdAt,
@@ -49,17 +50,17 @@ class SessionModel {
       creatorUid: '',
       creatorName: '',
       partnerUid: '',
-      activityType: 'study',
+      activityType: SessionConstants.defaultActivityType,
       title: '',
       description: '',
       location: '',
       date: DateTime.now(),
       durationMinutes: 60,
-      interactionPreference: 'social',
-      status: 'open',
+      interactionPreference: SessionConstants.defaultInteractionPreference,
+      status: SessionStatus.open,
       faculty: '',
       isActive: true,
-      maxParticipants: 2,
+      maxParticipants: SessionRules.defaultMaxParticipants,
       participantUids: const [],
       minRating: 0.0,
       createdAt: DateTime.now(),
@@ -73,18 +74,21 @@ class SessionModel {
       creatorUid: map['creatorUid'] as String? ?? '',
       creatorName: map['creatorName'] as String? ?? '',
       partnerUid: map['partnerUid'] as String? ?? '',
-      activityType: map['activityType'] as String? ?? 'study',
+        activityType:
+          map['activityType'] as String? ?? SessionConstants.defaultActivityType,
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
       location: map['location'] as String? ?? '',
       date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 60,
-      interactionPreference:
-          map['interactionPreference'] as String? ?? 'social',
-      status: map['status'] as String? ?? 'open',
+        interactionPreference: map['interactionPreference'] as String? ??
+          SessionConstants.defaultInteractionPreference,
+        status: map['status'] as String? ?? SessionStatus.open,
       faculty: map['faculty'] as String? ?? '',
       isActive: map['isActive'] as bool? ?? true,
-      maxParticipants: (map['maxParticipants'] as num?)?.toInt() ?? 2,
+        maxParticipants:
+          (map['maxParticipants'] as num?)?.toInt() ??
+          SessionRules.defaultMaxParticipants,
       participantUids: (map['participantUids'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
       minRating: (map['minRating'] as num?)?.toDouble() ?? 0.0,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),

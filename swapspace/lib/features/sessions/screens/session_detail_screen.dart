@@ -5,13 +5,17 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/feedback_provider.dart';
 import '../../../providers/session_provider.dart';
 import '../../../providers/join_request_provider.dart';
-import '../../../repositories/user_repository.dart';
+import '../widgets/session_status_badge.dart';
+import '../widgets/quick_info_chip.dart';
+import '../widgets/section_shell.dart';
+import '../widgets/detail_row.dart';
 
 class SessionDetailScreen extends StatefulWidget {
   final SessionModel session;
@@ -22,7 +26,6 @@ class SessionDetailScreen extends StatefulWidget {
 }
 
 class _SessionDetailScreenState extends State<SessionDetailScreen> {
-  final UserRepository _userRepo = UserRepository();
   UserModel? _creator;
   bool _loadingCreator = true;
   bool _requestSent = false;
@@ -37,14 +40,18 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   Future<void> _loadCreator() async {
     try {
-      _creator = await _userRepo.getUser(widget.session.creatorUid);
-    } catch (_) {}
+      _creator = await context.read<AuthProvider>().getUserById(
+        widget.session.creatorUid,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error('SessionDetailScreen._loadCreator error', e, stackTrace);
+    }
     if (mounted) setState(() => _loadingCreator = false);
   }
 
   Future<void> _checkFeedback() async {
     if (widget.session.status != 'completed') return;
-    final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+      final currentUid = context.read<AuthProvider>().userId ?? '';
     if (currentUid.isEmpty) return;
     final otherCount = widget.session.participantUids
         .where((uid) => uid != currentUid)
@@ -61,7 +68,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+      final currentUid = context.read<AuthProvider>().userId ?? '';
     final isCreator = widget.session.creatorUid == currentUid;
     final isOpen = widget.session.status == 'open';
 
@@ -139,7 +146,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _StatusBadge(status: widget.session.status),
+                                SessionStatusBadge(status: widget.session.status),
                                 const SizedBox(height: AppSpacing.sm),
                                 Text(
                                   widget.session.title,
@@ -172,19 +179,19 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         spacing: AppSpacing.sm,
                         runSpacing: AppSpacing.sm,
                         children: [
-                          _QuickInfoChip(
+                          QuickInfoChip(
                             icon: Icons.calendar_today_rounded,
                             text: _formatDate(),
                           ),
-                          _QuickInfoChip(
+                          QuickInfoChip(
                             icon: Icons.access_time_rounded,
                             text: _formatTime(),
                           ),
-                          _QuickInfoChip(
+                          QuickInfoChip(
                             icon: Icons.timer_outlined,
                             text: _formatDuration(),
                           ),
-                          _QuickInfoChip(
+                          QuickInfoChip(
                             icon: Icons.group_rounded,
                             text:
                                 '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
@@ -210,7 +217,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   _buildDetailsCard(),
                 ],
                 const SizedBox(height: AppSpacing.lg),
-                _SectionShell(
+                SectionShell(
                   title: 'Actions',
                   subtitle: 'Manage this session based on your current role.',
                   child: _buildActionButtons(
@@ -230,7 +237,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Widget _buildCreatorCard() {
-    return _SectionShell(
+    return SectionShell(
       title: 'Host',
       subtitle: 'The person organizing this session.',
       child: _loadingCreator
@@ -240,87 +247,98 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 child: CircularProgressIndicator(),
               ),
             )
-          : Row(
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: AppColors.primaryBlueLight,
-                  backgroundImage:
-                      _creator != null && _creator!.avatarUrl.isNotEmpty
-                      ? NetworkImage(_creator!.avatarUrl)
-                      : null,
-                  child: _creator == null || _creator!.avatarUrl.isEmpty
-                      ? Text(
-                          _creator?.name.isNotEmpty == true
-                              ? _creator!.name[0]
-                              : '?',
-                          style: AppTextStyles.headingSmall.copyWith(
-                            color: AppColors.primaryBlue,
+          : InkWell(
+              onTap: () => context.push(
+                RouteNames.userProfileById(widget.session.creatorUid),
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: AppColors.primaryBlueLight,
+                      backgroundImage:
+                          _creator != null && _creator!.avatarUrl.isNotEmpty
+                          ? NetworkImage(_creator!.avatarUrl)
+                          : null,
+                      child: _creator == null || _creator!.avatarUrl.isEmpty
+                          ? Text(
+                              _creator?.name.isNotEmpty == true
+                                  ? _creator!.name[0]
+                                  : '?',
+                              style: AppTextStyles.headingSmall.copyWith(
+                                color: AppColors.primaryBlue,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _creator?.name ??
+                                (widget.session.creatorName.isNotEmpty
+                                    ? widget.session.creatorName
+                                    : 'Unknown'),
+                            style: AppTextStyles.labelLarge,
                           ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _creator?.name ??
-                            (widget.session.creatorName.isNotEmpty
-                                ? widget.session.creatorName
-                                : 'Unknown'),
-                        style: AppTextStyles.labelLarge,
+                          if (_creator?.faculty.isNotEmpty == true)
+                            Text(
+                              _creator!.faculty,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryBlueDark,
+                              ),
+                            ),
+                        ],
                       ),
-                      if (_creator?.faculty.isNotEmpty == true)
-                        Text(
-                          _creator!.faculty,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primaryBlueDark,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.warningOrangeLight,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.star_rounded,
-                        color: AppColors.warningOrange,
-                        size: 14,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        (_creator?.rating ?? 0).toStringAsFixed(1),
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.warningOrange,
+                      decoration: BoxDecoration(
+                        color: AppColors.warningOrangeLight,
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusFull,
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: AppColors.warningOrange,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            (_creator?.rating ?? 0).toStringAsFixed(1),
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.warningOrange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
     );
   }
 
   Widget _buildDetailsCard() {
-    return _SectionShell(
+    return SectionShell(
       title: 'Activity Details',
       subtitle: 'Everything you need before joining.',
       child: Column(
         children: [
-          _DetailRow(
+          DetailRow(
             icon: Icons.category,
             label: 'Type',
             value:
@@ -328,38 +346,38 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 widget.session.activityType.substring(1),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.calendar_today,
             label: 'Date',
             value: _formatDate(),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.access_time,
             label: 'Time',
             value: _formatTime(),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.timer,
             label: 'Duration',
             value: _formatDuration(),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.location_on,
             label: 'Location',
             value: widget.session.location,
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.group,
             label: 'Participants',
             value:
                 '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
           ),
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: widget.session.interactionPreference == 'silent'
                 ? Icons.volume_off
                 : Icons.chat_bubble_outline,
@@ -370,14 +388,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           ),
           if (widget.session.faculty.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            _DetailRow(
+            DetailRow(
               icon: Icons.school,
               label: 'Faculty',
               value: widget.session.faculty,
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          _DetailRow(
+          DetailRow(
             icon: Icons.star,
             label: 'Min Rating Required',
             value: widget.session.minRating.toStringAsFixed(1),
@@ -478,7 +496,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           child: OutlinedButton.icon(
             icon: Icon(Icons.exit_to_app, color: AppColors.errorRed),
             label: Text(
-              'Leave Session',
+              'Request to Leave',
               style: TextStyle(color: AppColors.errorRed),
             ),
             style: OutlinedButton.styleFrom(
@@ -497,7 +515,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               if (success && mounted) {
                 context.read<SessionProvider>().loadOpenSessions();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('You left the session')),
+                  const SnackBar(content: Text('Leave request sent to creator')),
                 );
                 context.go(RouteNames.home);
               }
@@ -870,141 +888,5 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     if (hours > 0) parts.add('${hours}h');
     if (mins > 0 || parts.isEmpty) parts.add('${mins}m');
     return parts.join(' ');
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String status;
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg) = switch (status) {
-      'open' => (AppColors.successGreenLight, AppColors.successGreen),
-      'matched' => (AppColors.primaryBlueLight, AppColors.primaryBlue),
-      'completed' => (AppColors.grey100, AppColors.grey600),
-      'cancelled' => (AppColors.errorRedSoft, AppColors.errorRed),
-      _ => (AppColors.grey100, AppColors.grey600),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: AppTextStyles.labelSmall.copyWith(color: fg),
-      ),
-    );
-  }
-}
-
-class _QuickInfoChip extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _QuickInfoChip({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.heroPanelStrong,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.primaryBlueDark),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            text,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionShell extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  const _SectionShell({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: AppTextStyles.headingSmall),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              subtitle,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: AppSpacing.iconSm, color: AppColors.primaryBlue),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(
-          child: Text(
-            value,
-            style: AppTextStyles.labelLarge,
-            textAlign: TextAlign.end,
-          ),
-        ),
-      ],
-    );
   }
 }

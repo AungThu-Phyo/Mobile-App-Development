@@ -6,9 +6,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
+import '../../../core/constants/session_constants.dart';
 import '../../../models/session_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/session_provider.dart';
+import '../widgets/session_upsert_form.dart';
 
 class CreateSessionScreen extends StatefulWidget {
   const CreateSessionScreen({super.key});
@@ -28,14 +30,14 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
   final _minutesController = TextEditingController();
   final _participantsController = TextEditingController();
 
-  String _activityType = 'study';
+  String _activityType = SessionConstants.defaultActivityType;
   double _minRating = 0.0;
-  String _interactionPreference = 'social';
+  String _interactionPreference = SessionConstants.defaultInteractionPreference;
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _isSubmitting = false;
 
-  final _activityTypes = ['study', 'gym', 'football', 'walking', 'other'];
+  final _activityTypes = SessionConstants.activityTypes;
 
   @override
   void dispose() {
@@ -55,7 +57,7 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 60)),
+      lastDate: DateTime.now().add(const Duration(days: SessionRules.maxScheduleDays)),
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
@@ -75,7 +77,7 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
 
     final authProvider = context.read<AuthProvider>();
     final sessionProvider = context.read<SessionProvider>();
-    final uid = authProvider.firebaseUser?.uid ?? '';
+      final uid = authProvider.userId ?? '';
     final creatorName = authProvider.currentUser?.name ?? '';
     final now = DateTime.now();
 
@@ -83,7 +85,9 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     final hours = int.tryParse(_hoursController.text) ?? 0;
     final minutes = int.tryParse(_minutesController.text) ?? 0;
     final durationMinutes = days * 24 * 60 + hours * 60 + minutes;
-    final maxParticipants = int.tryParse(_participantsController.text) ?? 2;
+    final maxParticipants =
+      int.tryParse(_participantsController.text) ??
+      SessionRules.defaultMaxParticipants;
 
     final sessionDate = DateTime(
       _selectedDate.year,
@@ -94,7 +98,7 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
     );
 
     final session = SessionModel(
-      sessionId: 'session_${now.millisecondsSinceEpoch}',
+      sessionId: '${SessionConstants.sessionIdPrefix}${now.millisecondsSinceEpoch}',
       creatorUid: uid,
       creatorName: creatorName,
       activityType: _activityType,
@@ -127,53 +131,6 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
         ),
       );
     }
-  }
-
-  String _formatDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
-  }
-
-  String _formatTime(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $period';
-  }
-
-  InputDecoration _fieldDecor({String? hint, Widget? prefix}) {
-    return InputDecoration(
-      hintText: hint,
-      prefixIcon: prefix,
-      filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
-
-  InputDecoration _durationFieldDecor(String hint) {
-    return _fieldDecor(hint: hint).copyWith(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-    );
   }
 
   @override
@@ -212,424 +169,35 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
               constraints: const BoxConstraints(maxWidth: 860),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: AppColors.heroGradientCoolToWarm,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            AppSpacing.radiusLg,
-                          ),
-                          border: Border.all(color: AppColors.grey200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Create a new session',
-                              style: AppTextStyles.headingMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              'Set up the activity, timing, and preferences so the right people can join.',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      _FormSection(
-                        title: 'Basics',
-                        subtitle: 'What the session is about.',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Activity Type',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            DropdownButtonFormField<String>(
-                              value: _activityType,
-                              decoration: _fieldDecor(),
-                              items: _activityTypes.map((t) {
-                                return DropdownMenuItem(
-                                  value: t,
-                                  child: Text(
-                                    t[0].toUpperCase() + t.substring(1),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (v) =>
-                                  setState(() => _activityType = v!),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Title',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            TextFormField(
-                              controller: _titleController,
-                              decoration: _fieldDecor(
-                                hint: 'e.g. Study for Math Exam',
-                              ),
-                              validator: (v) => v == null || v.trim().isEmpty
-                                  ? 'Title is required'
-                                  : null,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Description',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            TextFormField(
-                              controller: _descriptionController,
-                              maxLines: 3,
-                              decoration: _fieldDecor(
-                                hint: 'Describe your session...',
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Location',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            TextFormField(
-                              controller: _locationController,
-                              decoration: _fieldDecor(
-                                hint: 'e.g. MFU Library Floor 2',
-                                prefix: Icon(
-                                  Icons.location_on,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                              validator: (v) => v == null || v.trim().isEmpty
-                                  ? 'Location is required'
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _FormSection(
-                        title: 'Schedule',
-                        subtitle: 'When it happens and how long it lasts.',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Date', style: AppTextStyles.labelLarge),
-                            const SizedBox(height: AppSpacing.sm),
-                            _PickerTile(
-                              icon: Icons.calendar_today,
-                              label: _formatDate(_selectedDate),
-                              onTap: _pickDate,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Start Time',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            _PickerTile(
-                              icon: Icons.access_time,
-                              label: _formatTime(_selectedTime),
-                              onTap: _pickTime,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Duration',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _daysController,
-                                    keyboardType: TextInputType.number,
-                                    cursorColor: AppColors.primaryBlueDark,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.bodyLarge,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      _MaxValueFormatter(30),
-                                    ],
-                                    decoration: _durationFieldDecor('Days'),
-                                    validator: (v) {
-                                      final d = int.tryParse(v ?? '') ?? 0;
-                                      final h =
-                                          int.tryParse(_hoursController.text) ??
-                                          0;
-                                      final m =
-                                          int.tryParse(
-                                            _minutesController.text,
-                                          ) ??
-                                          0;
-                                      if (d == 0 && h == 0 && m == 0)
-                                        return 'Required';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _hoursController,
-                                    keyboardType: TextInputType.number,
-                                    cursorColor: AppColors.primaryBlueDark,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.bodyLarge,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      _MaxValueFormatter(23),
-                                    ],
-                                    decoration: _durationFieldDecor('Hours'),
-                                    validator: (v) {
-                                      final d =
-                                          int.tryParse(_daysController.text) ??
-                                          0;
-                                      final h = int.tryParse(v ?? '') ?? 0;
-                                      final m =
-                                          int.tryParse(
-                                            _minutesController.text,
-                                          ) ??
-                                          0;
-                                      if (d == 0 && h == 0 && m == 0)
-                                        return 'Required';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _minutesController,
-                                    keyboardType: TextInputType.number,
-                                    cursorColor: AppColors.primaryBlueDark,
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.bodyLarge,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      _MaxValueFormatter(59),
-                                    ],
-                                    decoration: _durationFieldDecor('Minutes'),
-                                    validator: (v) {
-                                      final m = int.tryParse(v ?? '') ?? 0;
-                                      if (m >= 60) return 'Max 59';
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Max Participants',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            TextFormField(
-                              controller: _participantsController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                _MaxValueFormatter(50),
-                              ],
-                              decoration: _fieldDecor(
-                                hint: 'e.g. 2',
-                                prefix: Icon(
-                                  Icons.group,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                              validator: (v) {
-                                final n = int.tryParse(v ?? '') ?? 0;
-                                if (n < 2) return 'At least 2';
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _FormSection(
-                        title: 'Preferences',
-                        subtitle: 'Choose who this session is best suited for.',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Minimum Rating',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Slider(
-                                    value: _minRating,
-                                    min: 0,
-                                    max: 5,
-                                    divisions: 10,
-                                    label: _minRating.toStringAsFixed(1),
-                                    activeColor: AppColors.primaryBlue,
-                                    onChanged: (v) =>
-                                        setState(() => _minRating = v),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm,
-                                    vertical: AppSpacing.xs,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    borderRadius: BorderRadius.circular(
-                                      AppSpacing.radiusLg,
-                                    ),
-                                    border: Border.all(
-                                      color: AppColors.grey200,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        color: Colors.amber,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _minRating.toStringAsFixed(1),
-                                        style: AppTextStyles.bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Interaction Preference',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Row(
-                              children: ['silent', 'social'].map((pref) {
-                                final selected = _interactionPreference == pref;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      right: pref == 'silent'
-                                          ? AppSpacing.sm
-                                          : 0,
-                                    ),
-                                    child: GestureDetector(
-                                      onTap: () => setState(
-                                        () => _interactionPreference = pref,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: AppSpacing.md,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: selected
-                                              ? AppColors.primaryBlue
-                                              : AppColors.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            AppSpacing.radiusLg,
-                                          ),
-                                          border: Border.all(
-                                            color: selected
-                                                ? AppColors.primaryBlue
-                                                : AppColors.grey200,
-                                          ),
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              pref == 'silent'
-                                                  ? Icons.volume_off
-                                                  : Icons.chat_bubble_outline,
-                                              size: 18,
-                                              color: selected
-                                                  ? Colors.white
-                                                  : AppColors.textSecondary,
-                                            ),
-                                            const SizedBox(
-                                              width: AppSpacing.xs,
-                                            ),
-                                            Text(
-                                              pref[0].toUpperCase() +
-                                                  pref.substring(1),
-                                              style: AppTextStyles.labelLarge
-                                                  .copyWith(
-                                                    color: selected
-                                                        ? Colors.white
-                                                        : AppColors
-                                                              .textSecondary,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Faculty (optional)',
-                              style: AppTextStyles.labelLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            TextFormField(
-                              controller: _facultyController,
-                              decoration: _fieldDecor(
-                                hint: 'e.g. Science, Engineering',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submit,
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Post Session'),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-                  ),
+                child: SessionUpsertForm(
+                  formKey: _formKey,
+                  title: 'Create a new session',
+                  subtitle:
+                      'Set up the activity, timing, and preferences so the right people can join.',
+                  submitLabel: 'Post Session',
+                  isSubmitting: _isSubmitting,
+                  activityTypes: _activityTypes,
+                  interactionPreferences: SessionConstants.interactionPreferences,
+                  selectedActivityType: _activityType,
+                  minRating: _minRating,
+                  interactionPreference: _interactionPreference,
+                  selectedDate: _selectedDate,
+                  selectedTime: _selectedTime,
+                  titleController: _titleController,
+                  descriptionController: _descriptionController,
+                  locationController: _locationController,
+                  facultyController: _facultyController,
+                  daysController: _daysController,
+                  hoursController: _hoursController,
+                  minutesController: _minutesController,
+                  participantsController: _participantsController,
+                  onActivityTypeChanged: (v) => setState(() => _activityType = v),
+                  onPickDate: _pickDate,
+                  onPickTime: _pickTime,
+                  onMinRatingChanged: (v) => setState(() => _minRating = v),
+                  onInteractionPreferenceChanged: (v) =>
+                      setState(() => _interactionPreference = v),
+                  onSubmit: _submit,
                 ),
               ),
             ),
@@ -637,94 +205,5 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
         },
       ),
     );
-  }
-}
-
-class _FormSection extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  const _FormSection({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: AppTextStyles.headingSmall),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              subtitle,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _PickerTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          border: Border.all(color: AppColors.grey200),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.primaryBlue),
-            const SizedBox(width: AppSpacing.sm),
-            Text(label, style: AppTextStyles.bodyMedium),
-            const Spacer(),
-            Icon(Icons.arrow_drop_down, color: AppColors.grey600),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Limits numeric input to a maximum value.
-class _MaxValueFormatter extends TextInputFormatter {
-  final int max;
-  _MaxValueFormatter(this.max);
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) return newValue;
-    final value = int.tryParse(newValue.text);
-    if (value == null || value > max) return oldValue;
-    return newValue;
   }
 }

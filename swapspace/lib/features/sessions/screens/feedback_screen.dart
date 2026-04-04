@@ -5,12 +5,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../models/feedback_model.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/feedback_provider.dart';
-import '../../../repositories/user_repository.dart';
 
 class FeedbackScreen extends StatefulWidget {
   final SessionModel session;
@@ -21,8 +21,6 @@ class FeedbackScreen extends StatefulWidget {
 }
 
 class _FeedbackScreenState extends State<FeedbackScreen> {
-  final UserRepository _userRepo = UserRepository();
-
   List<UserModel> _reviewees = [];
   bool _loading = true;
   final Map<String, int> _ratings = {};
@@ -37,7 +35,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _loadData() async {
-    final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+      final currentUid = context.read<AuthProvider>().userId ?? '';
     final feedbackProvider = context.read<FeedbackProvider>();
 
     final otherUids = widget.session.participantUids
@@ -53,14 +51,16 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final List<UserModel> reviewees = [];
     for (final uid in otherUids) {
       try {
-        final user = await _userRepo.getUser(uid);
+        final user = await context.read<AuthProvider>().getUserById(uid);
         if (user != null) {
           reviewees.add(user);
           _ratings[uid] = 0;
           _didShowUps[uid] = true;
           _commentControllers[uid] = TextEditingController();
         }
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        AppLogger.error('FeedbackScreen._loadData reviewee fetch error', e, stackTrace);
+      }
     }
 
     if (mounted) {
@@ -333,37 +333,55 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primaryBlueLight,
-                  backgroundImage: reviewee.avatarUrl.isNotEmpty
-                      ? NetworkImage(reviewee.avatarUrl)
-                      : null,
-                  child: reviewee.avatarUrl.isEmpty
-                      ? Text(
-                          reviewee.name.isNotEmpty
-                              ? reviewee.name[0].toUpperCase()
-                              : '?',
-                          style: AppTextStyles.headingSmall.copyWith(
-                            color: AppColors.primaryBlue,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(reviewee.name, style: AppTextStyles.labelLarge),
-                      if (reviewee.faculty.isNotEmpty)
-                        Text(
-                          reviewee.faculty,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
+                  child: InkWell(
+                    onTap: () => context.push(
+                      RouteNames.userProfileById(reviewee.uid),
+                    ),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 2,
+                        horizontal: 2,
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: AppColors.primaryBlueLight,
+                            backgroundImage: reviewee.avatarUrl.isNotEmpty
+                                ? NetworkImage(reviewee.avatarUrl)
+                                : null,
+                            child: reviewee.avatarUrl.isEmpty
+                                ? Text(
+                                    reviewee.name.isNotEmpty
+                                        ? reviewee.name[0].toUpperCase()
+                                        : '?',
+                                    style: AppTextStyles.headingSmall.copyWith(
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  )
+                                : null,
                           ),
-                        ),
-                    ],
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(reviewee.name, style: AppTextStyles.labelLarge),
+                                if (reviewee.faculty.isNotEmpty)
+                                  Text(
+                                    reviewee.faculty,
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 Container(
@@ -480,7 +498,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _submit(FeedbackProvider provider) async {
-    final currentUid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+      final currentUid = context.read<AuthProvider>().userId ?? '';
 
     bool allSuccess = true;
     for (final reviewee in _reviewees) {

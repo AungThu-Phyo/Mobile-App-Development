@@ -1,121 +1,118 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'base_state_provider.dart';
+import '../core/utils/app_logger.dart';
 import '../models/user_model.dart';
-import '../repositories/user_repository.dart';
+import '../services/auth_service.dart';
 
-class AuthProvider extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final UserRepository _userRepo = UserRepository();
+class AuthProvider extends BaseStateProvider {
+  final AuthService _authService;
+  late StreamSubscription<String?> _authSubscription;
 
-  User? _firebaseUser;
+  String? _userId;
   UserModel? _currentUser;
-  bool _isLoading = true;
-  String? _error;
 
-  bool get isLoggedIn => _firebaseUser != null;
-  User? get firebaseUser => _firebaseUser;
+  bool get isLoggedIn => _userId != null;
+  String? get userId => _userId;
   UserModel? get currentUser => _currentUser;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
 
-  AuthProvider() {
-    _auth.authStateChanges().listen(_onAuthStateChanged);
+  AuthProvider({required AuthService authService}) : _authService = authService {
+    setLoading(true);
+    _authSubscription = authService.authStateStream().listen(_onAuthStateChanged);
   }
 
-  Future<void> _onAuthStateChanged(User? user) async {
-    _firebaseUser = user;
-    if (user != null) {
-      _currentUser = await _userRepo.getUser(user.uid);
-      if (_currentUser == null) {
-        final newUser = UserModel(
-          uid: user.uid,
-          name: user.displayName ?? '',
-          email: user.email ?? '',
-          avatarUrl: user.photoURL ?? '',
-          createdAt: DateTime.now(),
-          lastSeen: DateTime.now(),
-        );
-        await _userRepo.createUser(newUser);
-        _currentUser = newUser;
+  Future<void> _onAuthStateChanged(String? userId) async {
+    setError(null);
+
+    try {
+      _userId = userId;
+      if (userId != null) {
+        _currentUser = await _authService.bootstrapUser(userId);
       } else {
-        await _userRepo.updateLastSeen(user.uid);
-        _currentUser = _currentUser!.copyWith(lastSeen: DateTime.now());
+        _currentUser = null;
       }
-    } else {
+    } catch (e, stackTrace) {
+      AppLogger.error('AuthProvider._onAuthStateChanged bootstrap error', e, stackTrace);
       _currentUser = null;
+      setError('Profile data could not be loaded. Please sign in again.');
+    } finally {
+      setLoading(false);
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<bool> signInWithGoogle() async {
-    try {
-      _error = null;
-      _isLoading = true;
-      notifyListeners();
-
-      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-      googleProvider.addScope('email');
-      googleProvider.addScope('profile');
-      googleProvider.setCustomParameters({
-        // 'hd': 'lamduan.mfu.ac.th',
-        'prompt': 'select_account',
-      });
-
-      final UserCredential userCredential =
-          await _auth.signInWithPopup(googleProvider);
-
-      final user = userCredential.user;
-
-      if (user == null) {
-        _error = 'Sign in cancelled';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // Validate email domain
-      // TODO: Re-enable domain check after testing
-      // final email = user.email ?? '';
-      // if (!email.endsWith('@lamduan.mfu.ac.th')) {
-      //   await user.delete();
-      //   await _auth.signOut();
-      //   _error = 'Only MFU student emails (@lamduan.mfu.ac.th) are allowed';
-      //   _isLoading = false;
-      //   notifyListeners();
-      //   return false;
-      // }
-
-      return true;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'popup-closed-by-user' ||
-          e.code == 'cancelled-popup-request') {
-        _error = 'Sign in cancelled';
-      } else {
-        _error = e.message ?? 'An error occurred during sign in';
-      }
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      if (e.toString().contains('popup-closed-by-user') ||
-          e.toString().contains('cancelled-popup-request')) {
-        _error = 'Sign in cancelled';
-      } else {
-        _error = 'An error occurred during sign in';
-      }
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    return runWithLoading<bool>(
+      debugLabel: 'AuthProvider.signInWithGoogle',
+      errorMessage: 'Unable to sign in',
+      action: () async {
+        try {
+          return await _authService.signInWithGoogle();
+        } on AuthCanceledException catch (e) {
+          AppLogger.debug('AuthProvider.signInWithGoogle canceled: $e');
+          setError(e.message);
+          return false;
+        } on AuthException catch (e, stackTrace) {
+          AppLogger.error('AuthProvider.signInWithGoogle auth error', e, stackTrace);
+          setError(e.message);
+          return false;
+        }
+      },
+    );
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _authService.signOut();
   }
 
+  Future<bool> reauthenticateForSensitiveAction() async {
+    return runWithLoading<bool>(
+      debugLabel: 'AuthProvider.reauthenticateForSensitiveAction',
+      errorMessage: 'Unable to re-authenticate',
+      action: () async {
+        try {
+          await _authService.reauthenticateWithGoogle();
+          return true;
+        } on AuthCanceledException catch (e) {
+          AppLogger.debug('AuthProvider.reauthenticateForSensitiveAction canceled: $e');
+          setError(e.message);
+          return false;
+        } on AuthException catch (e, stackTrace) {
+          AppLogger.error('AuthProvider.reauthenticateForSensitiveAction auth error', e, stackTrace);
+          setError(e.message);
+          return false;
+        }
+      },
+    );
+  }
+
+  Future<UserModel?> getUserById(String uid) {
+    return _authService.getUserById(uid);
+  }
+
+  Future<void> refreshCurrentUser() async {
+    final uid = _userId;
+    if (uid == null) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      _currentUser = await _authService.bootstrapUser(uid);
+    } catch (e, stackTrace) {
+      AppLogger.error('AuthProvider.refreshCurrentUser error', e, stackTrace);
+      _currentUser = null;
+      setError('Profile data could not be loaded. Please sign in again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  @override
   void clearError() {
-    _error = null;
-    notifyListeners();
+    setError(null);
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
   }
 }

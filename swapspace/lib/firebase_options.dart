@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -40,49 +41,69 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBKSsE0sjzy7oniW3JE5OYfus5voc_eXl4',
-    appId: '1:868778657512:web:0c0039ed1b7fc6f0d62b5d',
-    messagingSenderId: '868778657512',
-    projectId: 'swapspace-add2d',
-    authDomain: 'swapspace-add2d.firebaseapp.com',
-    storageBucket: 'swapspace-add2d.firebasestorage.app',
-    measurementId: 'G-SYY9R95H09',
+  static FirebaseOptions get web => FirebaseOptions(
+    apiKey: _required('FIREBASE_WEB_API_KEY'),
+    appId: _required('FIREBASE_WEB_APP_ID'),
+    messagingSenderId: _required('FIREBASE_WEB_MESSAGING_SENDER_ID'),
+    projectId: _required('FIREBASE_WEB_PROJECT_ID'),
+    authDomain: _optional('FIREBASE_WEB_AUTH_DOMAIN'),
+    storageBucket: _optional('FIREBASE_WEB_STORAGE_BUCKET'),
+    measurementId: _optional('FIREBASE_WEB_MEASUREMENT_ID'),
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDGn6LvLgH8mnn1PQp7lKAl2xWvroekvJk',
-    appId: '1:868778657512:android:d6b31b68cb619640d62b5d',
-    messagingSenderId: '868778657512',
-    projectId: 'swapspace-add2d',
-    storageBucket: 'swapspace-add2d.firebasestorage.app',
+  static FirebaseOptions get android => FirebaseOptions(
+    apiKey: _required('FIREBASE_ANDROID_API_KEY'),
+    appId: _required('FIREBASE_ANDROID_APP_ID'),
+    messagingSenderId: _required('FIREBASE_ANDROID_MESSAGING_SENDER_ID'),
+    projectId: _required('FIREBASE_ANDROID_PROJECT_ID'),
+    storageBucket: _optional('FIREBASE_ANDROID_STORAGE_BUCKET'),
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBbtiHXc2uPMel2T4b1NmJKpp_ZswQMT2M',
-    appId: '1:868778657512:ios:7338f0ae25771892d62b5d',
-    messagingSenderId: '868778657512',
-    projectId: 'swapspace-add2d',
-    storageBucket: 'swapspace-add2d.firebasestorage.app',
-    iosBundleId: 'com.example.swapspace',
+  static FirebaseOptions get ios => FirebaseOptions(
+    apiKey: _required('FIREBASE_IOS_API_KEY'),
+    appId: _required('FIREBASE_IOS_APP_ID'),
+    messagingSenderId: _required('FIREBASE_IOS_MESSAGING_SENDER_ID'),
+    projectId: _required('FIREBASE_IOS_PROJECT_ID'),
+    storageBucket: _optional('FIREBASE_IOS_STORAGE_BUCKET'),
+    iosBundleId: _optional('FIREBASE_IOS_BUNDLE_ID'),
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBbtiHXc2uPMel2T4b1NmJKpp_ZswQMT2M',
-    appId: '1:868778657512:ios:7338f0ae25771892d62b5d',
-    messagingSenderId: '868778657512',
-    projectId: 'swapspace-add2d',
-    storageBucket: 'swapspace-add2d.firebasestorage.app',
-    iosBundleId: 'com.example.swapspace',
+  static FirebaseOptions get macos => FirebaseOptions(
+    apiKey: _required('FIREBASE_MACOS_API_KEY'),
+    appId: _required('FIREBASE_MACOS_APP_ID'),
+    messagingSenderId: _required('FIREBASE_MACOS_MESSAGING_SENDER_ID'),
+    projectId: _required('FIREBASE_MACOS_PROJECT_ID'),
+    storageBucket: _optional('FIREBASE_MACOS_STORAGE_BUCKET'),
+    iosBundleId: _optional('FIREBASE_MACOS_BUNDLE_ID'),
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBKSsE0sjzy7oniW3JE5OYfus5voc_eXl4',
-    appId: '1:868778657512:web:b84204c64f8e9946d62b5d',
-    messagingSenderId: '868778657512',
-    projectId: 'swapspace-add2d',
-    authDomain: 'swapspace-add2d.firebaseapp.com',
-    storageBucket: 'swapspace-add2d.firebasestorage.app',
-    measurementId: 'G-T1TG8Z3LBH',
+  static FirebaseOptions get windows => FirebaseOptions(
+    apiKey: _required('FIREBASE_WINDOWS_API_KEY'),
+    appId: _required('FIREBASE_WINDOWS_APP_ID'),
+    messagingSenderId: _required('FIREBASE_WINDOWS_MESSAGING_SENDER_ID'),
+    projectId: _required('FIREBASE_WINDOWS_PROJECT_ID'),
+    authDomain: _optional('FIREBASE_WINDOWS_AUTH_DOMAIN'),
+    storageBucket: _optional('FIREBASE_WINDOWS_STORAGE_BUCKET'),
+    measurementId: _optional('FIREBASE_WINDOWS_MEASUREMENT_ID'),
   );
+
+  static String _required(String key) {
+    final value = dotenv.env[key]?.trim();
+    if (value == null || value.isEmpty) {
+      throw StateError(
+        'Missing $key in .env. Copy .env.example to .env and add Firebase values.',
+      );
+    }
+
+    return value;
+  }
+
+  static String? _optional(String key) {
+    final value = dotenv.env[key]?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    return value;
+  }
 }

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/constants/route_names.dart';
+import '../../../core/constants/session_constants.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../models/join_request_model.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/join_request_provider.dart';
-import '../../../repositories/session_repository.dart';
-import '../../../repositories/user_repository.dart';
+import '../../../providers/session_provider.dart';
+import '../widgets/request_review_card.dart';
 
 class RequestsScreen extends StatefulWidget {
   const RequestsScreen({super.key});
@@ -30,7 +34,7 @@ class _RequestsScreenState extends State<RequestsScreen>
   }
 
   void _loadData() {
-    final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+      final uid = context.read<AuthProvider>().userId ?? '';
     if (uid.isEmpty) return;
     final provider = context.read<JoinRequestProvider>();
     provider.loadIncomingRequests(uid);
@@ -237,11 +241,10 @@ class _IncomingRequestCard extends StatefulWidget {
 }
 
 class _IncomingRequestCardState extends State<_IncomingRequestCard> {
-  final UserRepository _userRepo = UserRepository();
-  final SessionRepository _sessionRepo = SessionRepository();
   UserModel? _requester;
   SessionModel? _session;
   bool _loading = true;
+  bool _acting = false;
 
   @override
   void initState() {
@@ -252,12 +255,14 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
   Future<void> _loadDetails() async {
     try {
       final results = await Future.wait([
-        _userRepo.getUser(widget.request.requesterUid),
-        _sessionRepo.getById(widget.request.sessionId),
+        context.read<AuthProvider>().getUserById(widget.request.requesterUid),
+        context.read<SessionProvider>().getSessionById(widget.request.sessionId),
       ]);
       _requester = results[0] as UserModel?;
       _session = results[1] as SessionModel?;
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      AppLogger.error('RequestsScreen._IncomingRequestCard._loadDetails error', e, stackTrace);
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -273,172 +278,52 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
       );
     }
 
-    final sessionOpen = _session?.status == 'open';
+    final isLeaveRequest = widget.request.requestType == JoinRequestType.leave;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.cardPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_session != null)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlueLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                ),
-                child: Text(
-                  _session!.title,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primaryBlueDark,
-                  ),
-                ),
+    return RequestReviewCard(
+      request: widget.request,
+      requester: _requester,
+      session: _session,
+      onRequesterTap: _requester == null
+          ? null
+          : () => context.push(
+                RouteNames.userProfileById(_requester!.uid),
               ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppColors.primaryBlueLight,
-                  backgroundImage:
-                      _requester != null && _requester!.avatarUrl.isNotEmpty
-                      ? NetworkImage(_requester!.avatarUrl)
-                      : null,
-                  child: _requester == null || _requester!.avatarUrl.isEmpty
-                      ? Text(
-                          _requester?.name.isNotEmpty == true
-                              ? _requester!.name[0]
-                              : '?',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.primaryBlue,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _requester?.name ?? 'Unknown',
-                        style: AppTextStyles.labelLarge,
-                      ),
-                      if (_requester?.faculty.isNotEmpty == true)
-                        Text(_requester!.faculty, style: AppTextStyles.caption),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.warningOrangeLight,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.star,
-                        color: AppColors.warningOrange,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        (_requester?.rating ?? 0).toStringAsFixed(1),
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.warningOrange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      isActing: _acting,
+      acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
+      rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
+      onAccept: () async {
+        setState(() => _acting = true);
+        final provider = context.read<JoinRequestProvider>();
+        final success = await provider.acceptRequest(widget.request.requestId);
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isLeaveRequest
+                    ? 'Leave request approved'
+                    : 'Request accepted — matched!',
+              ),
             ),
-            if (widget.request.message.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                ),
-                child: Text(
-                  widget.request.message,
-                  style: AppTextStyles.bodyMedium,
-                ),
+          );
+        }
+        if (mounted) setState(() => _acting = false);
+      },
+      onReject: () async {
+        setState(() => _acting = true);
+        final provider = context.read<JoinRequestProvider>();
+        final success = await provider.rejectRequest(widget.request.requestId);
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isLeaveRequest ? 'Leave request denied' : 'Request rejected',
               ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            if (sessionOpen)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.errorRed),
-                      ),
-                      onPressed: () async {
-                        final provider = context.read<JoinRequestProvider>();
-                        final success = await provider.rejectRequest(
-                          widget.request.requestId,
-                        );
-                        if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Request rejected')),
-                          );
-                        }
-                      },
-                      child: Text(
-                        'Reject',
-                        style: TextStyle(color: AppColors.errorRed),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final provider = context.read<JoinRequestProvider>();
-                        final success = await provider.acceptRequest(
-                          widget.request.requestId,
-                          widget.request.sessionId,
-                          widget.request.requesterUid,
-                        );
-                        if (success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Request accepted — matched!'),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Accept'),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Center(
-                child: Text(
-                  'Session no longer open',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.grey600,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+            ),
+          );
+        }
+        if (mounted) setState(() => _acting = false);
+      },
     );
   }
 }
@@ -490,8 +375,6 @@ class _OutgoingRequestCard extends StatefulWidget {
 }
 
 class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
-  final SessionRepository _sessionRepo = SessionRepository();
-  final UserRepository _userRepo = UserRepository();
   SessionModel? _session;
   UserModel? _creator;
   bool _loading = true;
@@ -504,11 +387,17 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
 
   Future<void> _loadDetails() async {
     try {
-      _session = await _sessionRepo.getById(widget.request.sessionId);
+      _session = await context.read<SessionProvider>().getSessionById(
+        widget.request.sessionId,
+      );
       if (_session != null) {
-        _creator = await _userRepo.getUser(_session!.creatorUid);
+        _creator = await context.read<AuthProvider>().getUserById(
+          _session!.creatorUid,
+        );
       }
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      AppLogger.error('RequestsScreen._OutgoingRequestCard._loadDetails error', e, stackTrace);
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -545,33 +434,47 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.primaryBlueLight,
-                  backgroundImage:
-                      _creator != null && _creator!.avatarUrl.isNotEmpty
-                      ? NetworkImage(_creator!.avatarUrl)
-                      : null,
-                  child: _creator == null || _creator!.avatarUrl.isEmpty
-                      ? Text(
-                          _creator?.name.isNotEmpty == true
-                              ? _creator!.name[0]
-                              : '?',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.primaryBlue,
-                          ),
-                        )
-                      : null,
+            InkWell(
+              onTap: _creator == null
+                  ? null
+                  : () => context.push(
+                        RouteNames.userProfileById(_creator!.uid),
+                      ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 2,
+                  horizontal: 2,
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  'by ${_creator?.name ?? 'Unknown'}',
-                  style: AppTextStyles.caption,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primaryBlueLight,
+                      backgroundImage:
+                          _creator != null && _creator!.avatarUrl.isNotEmpty
+                          ? NetworkImage(_creator!.avatarUrl)
+                          : null,
+                      child: _creator == null || _creator!.avatarUrl.isEmpty
+                          ? Text(
+                              _creator?.name.isNotEmpty == true
+                                  ? _creator!.name[0]
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primaryBlue,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'by ${_creator?.name ?? 'Unknown'}',
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
             if (widget.request.message.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),

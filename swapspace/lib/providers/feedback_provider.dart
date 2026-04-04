@@ -1,91 +1,90 @@
-import 'package:flutter/foundation.dart';
+import 'base_state_provider.dart';
 import '../models/feedback_model.dart';
-import '../repositories/feedback_repository.dart';
-import '../repositories/user_repository.dart';
+import '../services/feedback_service.dart';
 
-class FeedbackProvider extends ChangeNotifier {
-  final FeedbackRepository _feedbackRepo = FeedbackRepository();
-  final UserRepository _userRepo = UserRepository();
+class FeedbackProvider extends BaseStateProvider {
+  final FeedbackService _service;
 
-  bool _isLoading = false;
-  String? _error;
+  FeedbackProvider({required FeedbackService service}) : _service = service;
 
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-
-  /// Submit feedback, save to Firestore, and update the reviewee's rating.
   Future<bool> submitFeedback(FeedbackModel feedback) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      // Save feedback document
-      await _feedbackRepo.create(feedback);
-
-      // Recalculate average rating from ALL feedback for this reviewee
-      final avgRating =
-          await _feedbackRepo.calculateAverageRating(feedback.revieweeUid);
-
-      // Count total feedback docs to get totalSessions
-      final allFeedback =
-          await _feedbackRepo.getFeedbackForUser(feedback.revieweeUid);
-
-      // Update the reviewee's user document
-      final user = await _userRepo.getUser(feedback.revieweeUid);
-      if (user != null) {
-        final updatedUser = user.copyWith(
-          rating: avgRating,
-          totalSessions: allFeedback.length,
-        );
-        await _userRepo.updateUser(updatedUser);
-      }
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = 'Failed to submit feedback: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    return runWithLoading<bool>(
+      debugLabel: 'FeedbackProvider.submitFeedback',
+      errorMessage: 'Unable to submit feedback',
+      action: () async {
+        await _service.submitFeedback(feedback);
+        return true;
+      },
+    );
   }
 
-  /// Check if the user already submitted feedback for this session.
   Future<bool> hasFeedbackSubmitted(String sessionId, String reviewerUid) async {
-    try {
-      final results = await _feedbackRepo.queryBySessionAndReviewer(
-        sessionId,
-        reviewerUid,
-      );
-      return results.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
+    return runWithLoading<bool>(
+      debugLabel: 'FeedbackProvider.hasFeedbackSubmitted',
+      errorMessage: 'Unable to check feedback status',
+      action: () => _service.hasFeedbackSubmitted(sessionId, reviewerUid),
+    );
   }
 
-  /// Check if feedback has been submitted for ALL other participants.
   Future<bool> hasAllFeedbackSubmitted(
-      String sessionId, String reviewerUid, int expectedCount) async {
-    try {
-      final results = await _feedbackRepo.queryBySessionAndReviewer(
+    String sessionId,
+    String reviewerUid,
+    int expectedCount,
+  ) async {
+    return runWithLoading<bool>(
+      debugLabel: 'FeedbackProvider.hasAllFeedbackSubmitted',
+      errorMessage: 'Unable to check feedback status',
+      action: () => _service.hasAllFeedbackSubmitted(
         sessionId,
         reviewerUid,
-      );
-      return results.length >= expectedCount;
-    } catch (_) {
-      return false;
-    }
+        expectedCount,
+      ),
+    );
   }
 
-  /// Get all feedback received by a user.
   Future<List<FeedbackModel>> getFeedbackForUser(String uid) async {
-    try {
-      return await _feedbackRepo.getFeedbackForUser(uid);
-    } catch (e) {
-      _error = 'Failed to load feedback';
-      return [];
-    }
+    return runWithLoading<List<FeedbackModel>>(
+      debugLabel: 'FeedbackProvider.getFeedbackForUser',
+      errorMessage: 'Unable to load feedback',
+      action: () => _service.getFeedbackForUser(uid),
+    );
+  }
+
+  Future<List<FeedbackModel>> getFeedbackForSession(String sessionId) async {
+    return runWithLoading<List<FeedbackModel>>(
+      debugLabel: 'FeedbackProvider.getFeedbackForSession',
+      errorMessage: 'Unable to load feedback',
+      action: () => _service.getFeedbackForSession(sessionId),
+    );
+  }
+
+  Future<double> calculateAverageRating(String uid) async {
+    return runWithLoading<double>(
+      debugLabel: 'FeedbackProvider.calculateAverageRating',
+      errorMessage: 'Unable to calculate rating',
+      action: () => _service.calculateAverageRating(uid),
+    );
+  }
+
+  Future<bool> updateFeedback(FeedbackModel feedback) async {
+    return runWithLoading<bool>(
+      debugLabel: 'FeedbackProvider.updateFeedback',
+      errorMessage: 'Unable to update feedback',
+      action: () async {
+        await _service.updateFeedback(feedback);
+        return true;
+      },
+    );
+  }
+
+  Future<bool> deleteFeedback(String feedbackId) async {
+    return runWithLoading<bool>(
+      debugLabel: 'FeedbackProvider.deleteFeedback',
+      errorMessage: 'Unable to delete feedback',
+      action: () async {
+        await _service.deleteFeedback(feedbackId);
+        return true;
+      },
+    );
   }
 }

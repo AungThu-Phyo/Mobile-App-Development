@@ -1,34 +1,47 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'base_state_provider.dart';
+import '../core/utils/app_logger.dart';
 import '../models/notification_model.dart';
-import '../repositories/notification_repository.dart';
+import '../services/notification_service.dart';
 
-class NotificationProvider extends ChangeNotifier {
-  final NotificationRepository _repo = NotificationRepository();
+class NotificationProvider extends BaseStateProvider {
+  final NotificationService _service;
+
+  NotificationProvider({required NotificationService service})
+      : _service = service;
 
   List<NotificationModel> _notifications = [];
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
+  StreamSubscription<List<NotificationModel>>? _sub;
 
   List<NotificationModel> get notifications => _notifications;
-  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  int get unreadCount => _service.calculateUnreadCount(_notifications);
 
   void listenNotifications(String uid) {
     _sub?.cancel();
-    _sub = _repo.streamForUser(uid).listen((snapshot) {
-      _notifications = snapshot.docs
-          .map((doc) => NotificationModel.fromMap(doc.data()))
-          .toList();
-      // Sort client-side (newest first) to avoid composite index requirement
-      _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    setLoading(true);
+    setError(null);
+
+    _sub = _service.streamNotifications(uid).listen((items) {
+      _notifications = items;
+      setLoading(false);
       notifyListeners();
-    }, onError: (e) {
-      debugPrint('Notification stream error: $e');
+    }, onError: (e, stackTrace) {
+      AppLogger.error('NotificationProvider.listenNotifications stream error', e, stackTrace);
+      setError('Unable to load notifications');
+      notifyListeners();
     });
   }
 
+  Future<void> loadNotifications(String uid) async {
+    _notifications = await runWithLoading<List<NotificationModel>>(
+      debugLabel: 'NotificationProvider.loadNotifications',
+      errorMessage: 'Unable to load notifications',
+      action: () => _service.fetchNotifications(uid),
+    );
+  }
+
   Future<void> markAsRead(String notificationId) async {
-    await _repo.markRead(notificationId);
+    await _service.markAsRead(notificationId);
     final idx = _notifications.indexWhere((n) => n.notificationId == notificationId);
     if (idx != -1) {
       _notifications[idx] = _notifications[idx].copyWith(isRead: true);
@@ -36,29 +49,9 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  /// Fire-and-forget helper used by other providers to create a notification.
-  Future<void> sendNotification({
-    required String recipientUid,
-    required String senderUid,
-    required String senderName,
-    required String sessionId,
-    required String sessionTitle,
-    required String type,
-    required String message,
-  }) async {
-    final id = FirebaseFirestore.instance.collection('notifications').doc().id;
-    final notification = NotificationModel(
-      notificationId: id,
-      recipientUid: recipientUid,
-      senderUid: senderUid,
-      senderName: senderName,
-      sessionId: sessionId,
-      sessionTitle: sessionTitle,
-      type: type,
-      message: message,
-      createdAt: DateTime.now(),
-    );
-    await _repo.create(notification);
+  @override
+  void clearError() {
+    setError(null);
   }
 
   @override

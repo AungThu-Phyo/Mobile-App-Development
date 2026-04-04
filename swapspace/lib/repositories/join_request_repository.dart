@@ -1,16 +1,39 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/constants/session_constants.dart';
+import '../core/errors/repository_exception.dart';
 import '../models/join_request_model.dart';
 
 class JoinRequestRepository {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
   final CollectionReference<Map<String, dynamic>> _requestsRef =
       FirebaseFirestore.instance.collection('joinRequests');
+
+  Future<T> runTransaction<T>(
+    Future<T> Function(Transaction tx) handler,
+  ) {
+    return _db.runTransaction((tx) => handler(tx));
+  }
+
+  String createRequestId() {
+    return _requestsRef.doc().id;
+  }
 
   /// Creates a new join request document.
   Future<void> create(JoinRequestModel request) async {
     try {
       await _requestsRef.doc(request.requestId).set(request.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to create join request',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to create join request: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to create join request',
+        cause: e,
+      );
     }
   }
 
@@ -22,8 +45,18 @@ class JoinRequestRepository {
         return JoinRequestModel.fromMap(doc.data()!);
       }
       return null;
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load join request',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get join request: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load join request',
+        cause: e,
+      );
     }
   }
 
@@ -31,8 +64,18 @@ class JoinRequestRepository {
   Future<void> update(JoinRequestModel request) async {
     try {
       await _requestsRef.doc(request.requestId).update(request.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to update join request',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to update join request: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to update join request',
+        cause: e,
+      );
     }
   }
 
@@ -40,8 +83,18 @@ class JoinRequestRepository {
   Future<void> delete(String requestId) async {
     try {
       await _requestsRef.doc(requestId).delete();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to delete join request',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to delete join request: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to delete join request',
+        cause: e,
+      );
     }
   }
 
@@ -55,54 +108,117 @@ class JoinRequestRepository {
     });
   }
 
-  /// Returns all pending requests for a given session.
-  Future<List<JoinRequestModel>> getRequestsForSession(
-      String sessionId) async {
+  /// Raw stream of requests for a creator (NO filtering).
+  Stream<List<JoinRequestModel>> streamForCreator(String uid) {
+    return _requestsRef
+        .where('creatorUid', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => JoinRequestModel.fromMap(doc.data()))
+              .toList();
+        });
+  }
+
+  Future<JoinRequestModel?> getByIdTx(Transaction tx, String requestId) async {
+    final doc = await tx.get(_requestsRef.doc(requestId));
+    if (doc.exists && doc.data() != null) {
+      return JoinRequestModel.fromMap(doc.data()!);
+    }
+    return null;
+  }
+
+  Future<void> updateStatusTx({
+    required Transaction tx,
+    required String requestId,
+    required String status,
+    required DateTime updatedAt,
+  }) async {
+    tx.update(_requestsRef.doc(requestId), {
+      'status': status,
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    });
+  }
+
+  Future<List<JoinRequestModel>> getPendingForSession(String sessionId) async {
+    final snapshot = await _requestsRef
+        .where('sessionId', isEqualTo: sessionId)
+        .where('status', isEqualTo: JoinRequestStatus.pending)
+        .get();
+    return snapshot.docs
+        .map((doc) => JoinRequestModel.fromMap(doc.data()))
+        .toList();
+  }
+
+  /// Raw requests for a session (NO filtering).
+  Future<List<JoinRequestModel>> getForSession(String sessionId) async {
     try {
       final snapshot = await _requestsRef
           .where('sessionId', isEqualTo: sessionId)
           .get();
-      final requests = snapshot.docs
+      return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
-          .where((r) => r.status == 'pending')
-          .toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      return requests;
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load session requests',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get requests for session: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load session requests',
+        cause: e,
+      );
     }
   }
 
-  /// Returns all requests sent by a specific user.
-  Future<List<JoinRequestModel>> getRequestsByUser(String uid) async {
+  /// Raw requests from a user (NO sorting).
+  Future<List<JoinRequestModel>> getFromUser(String uid) async {
     try {
       final snapshot = await _requestsRef
           .where('requesterUid', isEqualTo: uid)
           .get();
-      final requests = snapshot.docs
+      return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return requests;
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load outgoing requests',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get requests by user: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load outgoing requests',
+        cause: e,
+      );
     }
   }
 
-  /// Returns all pending requests received by a session creator.
-  Future<List<JoinRequestModel>> getRequestsForCreator(String uid) async {
+  /// Raw requests to a creator (NO filtering).
+  Future<List<JoinRequestModel>> getForCreator(String uid) async {
     try {
       final snapshot = await _requestsRef
           .where('creatorUid', isEqualTo: uid)
           .get();
-      final requests = snapshot.docs
+      return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
-          .where((r) => r.status == 'pending')
-          .toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      return requests;
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load incoming requests',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get requests for creator: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load incoming requests',
+        cause: e,
+      );
     }
   }
 }

@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/constants/session_constants.dart';
 
 class JoinRequestModel {
   final String requestId;
   final String sessionId;
   final String requesterUid;
   final String creatorUid;
+  final String requestType;
   final String message;
   final String status;
   final DateTime createdAt;
@@ -15,8 +17,9 @@ class JoinRequestModel {
     required this.sessionId,
     required this.requesterUid,
     required this.creatorUid,
+    this.requestType = JoinRequestType.join,
     this.message = '',
-    this.status = 'pending',
+    this.status = JoinRequestStatus.pending,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -27,8 +30,9 @@ class JoinRequestModel {
       sessionId: '',
       requesterUid: '',
       creatorUid: '',
+      requestType: JoinRequestType.join,
       message: '',
-      status: 'pending',
+      status: JoinRequestStatus.pending,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -40,8 +44,9 @@ class JoinRequestModel {
       sessionId: map['sessionId'] as String? ?? '',
       requesterUid: map['requesterUid'] as String? ?? '',
       creatorUid: map['creatorUid'] as String? ?? '',
+      requestType: map['requestType'] as String? ?? JoinRequestType.join,
       message: map['message'] as String? ?? '',
-      status: map['status'] as String? ?? 'pending',
+      status: map['status'] as String? ?? JoinRequestStatus.pending,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -53,6 +58,7 @@ class JoinRequestModel {
       'sessionId': sessionId,
       'requesterUid': requesterUid,
       'creatorUid': creatorUid,
+      'requestType': requestType,
       'message': message,
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -65,6 +71,7 @@ class JoinRequestModel {
     String? sessionId,
     String? requesterUid,
     String? creatorUid,
+    String? requestType,
     String? message,
     String? status,
     DateTime? createdAt,
@@ -75,6 +82,7 @@ class JoinRequestModel {
       sessionId: sessionId ?? this.sessionId,
       requesterUid: requesterUid ?? this.requesterUid,
       creatorUid: creatorUid ?? this.creatorUid,
+      requestType: requestType ?? this.requestType,
       message: message ?? this.message,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,

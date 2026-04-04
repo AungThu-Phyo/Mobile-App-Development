@@ -8,6 +8,7 @@ class SessionCard extends StatelessWidget {
   final SessionModel session;
   final VoidCallback onTap;
   final VoidCallback onAction;
+  final VoidCallback? onCreatorTap;
   final bool isOwner;
 
   const SessionCard({
@@ -15,6 +16,7 @@ class SessionCard extends StatelessWidget {
     required this.session,
     required this.onTap,
     required this.onAction,
+    this.onCreatorTap,
     this.isOwner = false,
   });
 
@@ -102,22 +104,34 @@ class SessionCard extends StatelessWidget {
                       ),
                       if (session.creatorName.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const SizedBox(width: 44),
-                            Icon(
-                              Icons.person,
-                              size: 14,
-                              color: AppColors.grey600,
+                        InkWell(
+                          onTap: onCreatorTap,
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusSm,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 2,
+                              horizontal: 2,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'by ${session.creatorName}',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 44),
+                                Icon(
+                                  Icons.person,
+                                  size: 14,
+                                  color: AppColors.grey600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'by ${session.creatorName}',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ],
                       const SizedBox(height: AppSpacing.sm),

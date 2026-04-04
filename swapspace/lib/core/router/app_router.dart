@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../constants/route_names.dart';
 import '../../models/session_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/privacy_policy_screen.dart';
 import '../../features/sessions/screens/home_screen.dart';
 import '../../features/sessions/screens/session_detail_screen.dart';
 import '../../features/sessions/screens/create_session_screen.dart';
@@ -12,6 +14,7 @@ import '../../features/sessions/screens/edit_session_screen.dart';
 import '../../features/sessions/screens/feedback_screen.dart';
 import '../../features/sessions/screens/requests_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/profile/screens/user_profile_screen.dart';
 import '../../providers/join_request_provider.dart';
 import '../../providers/notification_provider.dart';
 
@@ -26,8 +29,9 @@ abstract class AppRouter {
 
         final isLoggedIn = authProvider.isLoggedIn;
         final isOnLogin = state.matchedLocation == RouteNames.login;
+        final isOnPrivacyPolicy = state.matchedLocation == RouteNames.privacyPolicy;
 
-        if (!isLoggedIn && !isOnLogin) return RouteNames.login;
+        if (!isLoggedIn && !isOnLogin && !isOnPrivacyPolicy) return RouteNames.login;
         if (isLoggedIn && isOnLogin) return RouteNames.home;
         return null;
       },
@@ -35,6 +39,10 @@ abstract class AppRouter {
         GoRoute(
           path: RouteNames.login,
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: RouteNames.privacyPolicy,
+          builder: (context, state) => const PrivacyPolicyScreen(),
         ),
         ShellRoute(
           builder: (context, state, child) {
@@ -62,25 +70,72 @@ abstract class AppRouter {
         GoRoute(
           path: RouteNames.sessionDetail,
           builder: (context, state) {
-            final session = state.extra as SessionModel;
+            final session = _resolveSession(context, state.extra);
+            if (session == null) return const _MissingSessionScreen();
             return SessionDetailScreen(session: session);
           },
         ),
         GoRoute(
           path: RouteNames.editSession,
           builder: (context, state) {
-            final session = state.extra as SessionModel;
+            final session = _resolveSession(context, state.extra);
+            if (session == null) return const _MissingSessionScreen();
             return EditSessionScreen(session: session);
           },
         ),
         GoRoute(
           path: RouteNames.feedback,
           builder: (context, state) {
-            final session = state.extra as SessionModel;
+            final session = _resolveSession(context, state.extra);
+            if (session == null) return const _MissingSessionScreen();
             return FeedbackScreen(session: session);
           },
         ),
+        GoRoute(
+          path: '${RouteNames.userProfile}/:userId',
+          builder: (context, state) {
+            final userId = state.pathParameters['userId'] ?? '';
+            return UserProfileScreen(userId: userId);
+          },
+        ),
       ],
+    );
+  }
+
+  static SessionModel? _resolveSession(BuildContext context, Object? extra) {
+    if (extra is SessionModel) return extra;
+    return context.read<SessionProvider>().selectedSession;
+  }
+}
+
+class _MissingSessionScreen extends StatelessWidget {
+  const _MissingSessionScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Session not available')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.event_busy_rounded, size: 56),
+              const SizedBox(height: 12),
+              const Text(
+                'Session data was not available for this route.\nPlease go back and open the session again.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.go(RouteNames.home),
+                child: const Text('Go Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -95,17 +150,24 @@ class _ScaffoldWithNav extends StatefulWidget {
 
 class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
   bool _streamStarted = false;
+  String _activeUid = '';
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_streamStarted) {
-      final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
-      if (uid.isNotEmpty) {
+    final uid = context.read<AuthProvider>().userId ?? '';
+    if (uid.isNotEmpty && (!_streamStarted || _activeUid != uid)) {
+      _streamStarted = true;
+      _activeUid = uid;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         context.read<JoinRequestProvider>().listenIncomingRequests(uid);
         context.read<NotificationProvider>().listenNotifications(uid);
-        _streamStarted = true;
-      }
+      });
+    }
+    if (uid.isEmpty) {
+      _streamStarted = false;
+      _activeUid = '';
     }
   }
 
@@ -151,6 +213,10 @@ class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
                     case 2:
                       context.go(RouteNames.requests);
                     case 3:
+                      final uid = context.read<AuthProvider>().userId ?? '';
+                      if (uid.isNotEmpty) {
+                        context.read<SessionProvider>().loadMySessions(uid);
+                      }
                       context.go(RouteNames.profile);
                   }
                 },

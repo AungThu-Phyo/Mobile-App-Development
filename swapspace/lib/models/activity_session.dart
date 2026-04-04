@@ -27,17 +27,17 @@ class ActivitySession {
 
   factory ActivitySession.fromJson(Map<String, dynamic> json) {
     return ActivitySession(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      activityType: json['activityType'] as String,
-      location: json['location'] as String,
-      startTime: DateTime.parse(json['startTime'] as String),
-      durationMinutes: json['durationMinutes'] as int,
-      interactionLevel: json['interactionLevel'] as String,
-      minPartnerRating: (json['minPartnerRating'] as num).toDouble(),
-      createdBy: json['createdBy'] as String,
-      status: json['status'] as String,
-      notes: json['notes'] as String,
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      activityType: json['activityType'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      startTime: DateTime.tryParse(json['startTime'] as String? ?? '') ?? DateTime.now(),
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 0,
+      interactionLevel: json['interactionLevel'] as String? ?? '',
+      minPartnerRating: (json['minPartnerRating'] as num?)?.toDouble() ?? 0.0,
+      createdBy: json['createdBy'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      notes: json['notes'] as String? ?? '',
     );
   }
 

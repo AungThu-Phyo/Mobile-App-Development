@@ -1,16 +1,45 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/errors/repository_exception.dart';
 import '../models/session_model.dart';
 
 class SessionRepository {
   final CollectionReference<Map<String, dynamic>> _sessionsRef =
       FirebaseFirestore.instance.collection('sessions');
 
+  Query<Map<String, dynamic>> _visibleSessionsQuery() {
+    return _sessionsRef
+        .where('isActive', isEqualTo: true)
+        .where('date', isGreaterThan: Timestamp.now());
+  }
+
+  Future<SessionModel?> getByIdTx(Transaction tx, String sessionId) async {
+    final doc = await tx.get(_sessionsRef.doc(sessionId));
+    if (doc.exists && doc.data() != null) {
+      return SessionModel.fromMap(doc.data()!);
+    }
+    return null;
+  }
+
+  Future<void> updateTx(Transaction tx, SessionModel session) async {
+    tx.update(_sessionsRef.doc(session.sessionId), session.toMap());
+  }
+
   /// Creates a new session document.
   Future<void> create(SessionModel session) async {
     try {
       await _sessionsRef.doc(session.sessionId).set(session.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to create session',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to create session: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to create session',
+        cause: e,
+      );
     }
   }
 
@@ -22,8 +51,18 @@ class SessionRepository {
         return SessionModel.fromMap(doc.data()!);
       }
       return null;
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load session',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get session: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load session',
+        cause: e,
+      );
     }
   }
 
@@ -31,8 +70,18 @@ class SessionRepository {
   Future<void> update(SessionModel session) async {
     try {
       await _sessionsRef.doc(session.sessionId).update(session.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to update session',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to update session: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to update session',
+        cause: e,
+      );
     }
   }
 
@@ -40,8 +89,18 @@ class SessionRepository {
   Future<void> delete(String sessionId) async {
     try {
       await _sessionsRef.doc(sessionId).delete();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to delete session',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to delete session: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to delete session',
+        cause: e,
+      );
     }
   }
 
@@ -55,100 +114,99 @@ class SessionRepository {
     });
   }
 
-  /// Returns all open & active sessions, ordered by date ascending.
-  Future<List<SessionModel>> getOpenSessions() async {
+  /// Returns raw sessions by status (no filtering, no sorting).
+  Future<List<SessionModel>> getSessionsByStatus(String status) async {
+    try {
+      final snapshot = await _visibleSessionsQuery()
+          .where('status', isEqualTo: status)
+          .get();
+      return snapshot.docs
+          .map((doc) => SessionModel.fromMap(doc.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load sessions',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load sessions',
+        cause: e,
+      );
+    }
+  }
+
+  /// Returns raw sessions where user is creator.
+  Future<List<SessionModel>> getSessionsByCreator(String uid) async {
     try {
       final snapshot = await _sessionsRef
-          .where('status', isEqualTo: 'open')
-          .get();
-      final sessions = snapshot.docs
-          .map((doc) => SessionModel.fromMap(doc.data()))
-          .where((s) => s.isActive)
-          .toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-      return sessions;
-    } catch (e) {
-      throw Exception('Failed to get open sessions: $e');
-    }
-  }
-
-  /// Returns all active sessions (open + matched), for home feed.
-  Future<List<SessionModel>> getActiveSessions() async {
-    try {
-      final openSnap = await _sessionsRef
-          .where('status', isEqualTo: 'open')
-          .get();
-      final matchedSnap = await _sessionsRef
-          .where('status', isEqualTo: 'matched')
-          .get();
-      final Map<String, SessionModel> merged = {};
-      for (final doc in openSnap.docs) {
-        final s = SessionModel.fromMap(doc.data());
-        if (s.isActive) merged[s.sessionId] = s;
-      }
-      for (final doc in matchedSnap.docs) {
-        final s = SessionModel.fromMap(doc.data());
-        if (s.isActive) merged[s.sessionId] = s;
-      }
-      final sessions = merged.values.toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-      return sessions;
-    } catch (e) {
-      throw Exception('Failed to get active sessions: $e');
-    }
-  }
-
-  /// Returns open sessions filtered by activity type.
-  Future<List<SessionModel>> getSessionsByActivity(String activityType) async {
-    try {
-      final snapshot = await _sessionsRef
-          .where('status', isEqualTo: 'open')
-          .get();
-      final sessions = snapshot.docs
-          .map((doc) => SessionModel.fromMap(doc.data()))
-          .where((s) => s.isActive && s.activityType == activityType)
-          .toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-      return sessions;
-    } catch (e) {
-      throw Exception('Failed to get sessions by activity: $e');
-    }
-  }
-
-  /// Returns all sessions where the user is creator or partner.
-  Future<List<SessionModel>> getSessionsByUser(String uid) async {
-    try {
-      // Firestore doesn't support OR queries across fields in a single query,
-      // so we run three queries and merge results.
-      final creatorSnapshot = await _sessionsRef
           .where('creatorUid', isEqualTo: uid)
           .get();
-      final partnerSnapshot = await _sessionsRef
+      return snapshot.docs
+          .map((doc) => SessionModel.fromMap(doc.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load created sessions',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load created sessions',
+        cause: e,
+      );
+    }
+  }
+
+  /// Returns raw sessions where user is partner.
+  Future<List<SessionModel>> getSessionsByPartner(String uid) async {
+    try {
+      final snapshot = await _sessionsRef
           .where('partnerUid', isEqualTo: uid)
           .get();
-      final participantSnapshot = await _sessionsRef
+      return snapshot.docs
+          .map((doc) => SessionModel.fromMap(doc.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load partner sessions',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load partner sessions',
+        cause: e,
+      );
+    }
+  }
+
+  /// Returns raw sessions where user is participant.
+  Future<List<SessionModel>> getSessionsByParticipant(String uid) async {
+    try {
+      final snapshot = await _sessionsRef
           .where('participantUids', arrayContains: uid)
           .get();
-
-      final Map<String, SessionModel> merged = {};
-      for (final doc in creatorSnapshot.docs) {
-        final session = SessionModel.fromMap(doc.data());
-        merged[session.sessionId] = session;
-      }
-      for (final doc in partnerSnapshot.docs) {
-        final session = SessionModel.fromMap(doc.data());
-        merged[session.sessionId] = session;
-      }
-      for (final doc in participantSnapshot.docs) {
-        final session = SessionModel.fromMap(doc.data());
-        merged[session.sessionId] = session;
-      }
-
-      final sessions = merged.values.toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
-      return sessions;
+      return snapshot.docs
+          .map((doc) => SessionModel.fromMap(doc.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load joined sessions',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get sessions by user: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load joined sessions',
+        cause: e,
+      );
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/errors/repository_exception.dart';
 import '../models/feedback_model.dart';
 
 class FeedbackRepository {
@@ -9,8 +10,18 @@ class FeedbackRepository {
   Future<void> create(FeedbackModel feedback) async {
     try {
       await _feedbackRef.doc(feedback.feedbackId).set(feedback.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to create feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to create feedback: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to create feedback',
+        cause: e,
+      );
     }
   }
 
@@ -22,8 +33,18 @@ class FeedbackRepository {
         return FeedbackModel.fromMap(doc.data()!);
       }
       return null;
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get feedback: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load feedback',
+        cause: e,
+      );
     }
   }
 
@@ -31,8 +52,18 @@ class FeedbackRepository {
   Future<void> update(FeedbackModel feedback) async {
     try {
       await _feedbackRef.doc(feedback.feedbackId).update(feedback.toMap());
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to update feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to update feedback: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to update feedback',
+        cause: e,
+      );
     }
   }
 
@@ -40,8 +71,18 @@ class FeedbackRepository {
   Future<void> delete(String feedbackId) async {
     try {
       await _feedbackRef.doc(feedbackId).delete();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to delete feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to delete feedback: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to delete feedback',
+        cause: e,
+      );
     }
   }
 
@@ -55,23 +96,57 @@ class FeedbackRepository {
     });
   }
 
-  /// Returns all feedback where the user is the reviewee.
+  /// Returns raw feedback where the user is the reviewee.
   Future<List<FeedbackModel>> getFeedbackForUser(String uid) async {
     try {
       final snapshot = await _feedbackRef
           .where('revieweeUid', isEqualTo: uid)
           .get();
-      final list = snapshot.docs
+
+      return snapshot.docs
           .map((doc) => FeedbackModel.fromMap(doc.data()))
-          .toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
+          .toList(); // ❌ no sorting here
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load user feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to get feedback for user: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load user feedback',
+        cause: e,
+      );
     }
   }
 
-  /// Returns feedback docs for a specific session by a specific reviewer.
+  /// Returns raw feedback entries for a session.
+  Future<List<FeedbackModel>> getFeedbackForSession(String sessionId) async {
+    try {
+      final snapshot = await _feedbackRef
+          .where('sessionId', isEqualTo: sessionId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => FeedbackModel.fromMap(doc.data()))
+          .toList(); // ❌ no sorting here
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load session feedback',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load session feedback',
+        cause: e,
+      );
+    }
+  }
+
+  /// Query feedback for a session by a specific reviewer.
   Future<List<FeedbackModel>> queryBySessionAndReviewer(
       String sessionId, String reviewerUid) async {
     try {
@@ -79,25 +154,23 @@ class FeedbackRepository {
           .where('sessionId', isEqualTo: sessionId)
           .where('reviewerUid', isEqualTo: reviewerUid)
           .get();
+
       return snapshot.docs
           .map((doc) => FeedbackModel.fromMap(doc.data()))
           .toList();
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to query feedback',
+        cause: e,
+      );
     } catch (e) {
-      throw Exception('Failed to query feedback: $e');
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to query feedback',
+        cause: e,
+      );
     }
   }
 
-  /// Calculates average rating for a user from all received feedback.
-  /// Returns 0.0 if no feedback exists.
-  Future<double> calculateAverageRating(String uid) async {
-    try {
-      final feedbackList = await getFeedbackForUser(uid);
-      if (feedbackList.isEmpty) return 0.0;
-      final total =
-          feedbackList.fold<int>(0, (sum, fb) => sum + fb.rating);
-      return total / feedbackList.length;
-    } catch (e) {
-      throw Exception('Failed to calculate average rating: $e');
-    }
-  }
 }

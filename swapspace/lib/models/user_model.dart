@@ -95,6 +95,22 @@ class UserModel {
     };
   }
 
+  /// Convert to the public profile document shape.
+  Map<String, dynamic> toPublicMap({DateTime? updatedAt}) {
+    return {
+      'uid': uid,
+      'name': name,
+      'avatarUrl': avatarUrl,
+      'rating': rating,
+      'totalSessions': totalSessions,
+      'faculty': faculty,
+      'bio': bio,
+      'activityPreferences': activityPreferences,
+      'interactionPreference': interactionPreference,
+      'updatedAt': Timestamp.fromDate(updatedAt ?? DateTime.now()),
+    };
+  }
+
   UserModel copyWith({
     String? uid,
     String? name,

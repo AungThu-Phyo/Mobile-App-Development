@@ -2,6 +2,13 @@
 
 A new Flutter project.
 
+## Local Firebase Config
+
+1. Copy `.env.example` to `.env`.
+2. Fill in the Firebase values for the platforms you use.
+3. Keep `.env` out of git; it is already listed in `.gitignore`.
+4. Run `flutter pub get` and then `flutter run`.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

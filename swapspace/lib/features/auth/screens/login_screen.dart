@@ -3,11 +3,89 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/route_names.dart';
+import '../../../providers/consent_provider.dart';
 import '../../../providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _consentDialogShown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final consentProvider = context.read<ConsentProvider>();
+    if (!consentProvider.hasConsented && !_consentDialogShown && consentProvider.isLoaded) {
+      _consentDialogShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showConsentDialog();
+        }
+      });
+    }
+  }
+
+  Future<bool> _showConsentDialog() async {
+    final consentProvider = context.read<ConsentProvider>();
+    final accepted = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: const Text('Privacy Consent'),
+              content: const SingleChildScrollView(
+                child: Text(
+                  'SwapSpace collects your name, email, profile details, sessions, requests, and feedback to match students and run the app. Firebase and Google services are used for login and data storage. Please accept to continue.',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Decline'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('I Agree'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (accepted) {
+      await consentProvider.acceptConsent();
+    }
+    return accepted;
+  }
+
+  Future<void> _handleSignIn() async {
+    final consentProvider = context.read<ConsentProvider>();
+    if (!consentProvider.hasConsented) {
+      final accepted = await _showConsentDialog();
+      if (!accepted || !mounted) return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signInWithGoogle();
+    if (!success && authProvider.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error!),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -96,27 +174,17 @@ class LoginScreen extends StatelessWidget {
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.alternate_email),
                               label: const Text('Sign in with School Email'),
-                              onPressed: () async {
-                                final authProvider = context
-                                    .read<AuthProvider>();
-                                final success = await authProvider
-                                    .signInWithGoogle();
-                                if (!success &&
-                                    authProvider.error != null &&
-                                    context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(authProvider.error!),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
+                              onPressed: _handleSignIn,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.md),
+                          TextButton(
+                            onPressed: () => context.go(RouteNames.privacyPolicy),
+                            child: const Text('Read Privacy Policy'),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Only verified university students can access SwapSpace',
+                            'By signing in, you agree to the collection and use of the minimum profile data needed to match students and manage sessions.',
                             textAlign: TextAlign.center,
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.textSecondary,

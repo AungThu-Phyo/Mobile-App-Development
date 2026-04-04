@@ -1,0 +1,224 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import '../core/errors/repository_exception.dart';
+import '../core/utils/app_logger.dart';
+import '../models/user_model.dart';
+import '../repositories/feedback_repository.dart';
+import '../repositories/user_repository.dart';
+
+class AuthService {
+	final UserRepository _userRepo;
+	final FeedbackRepository _feedbackRepo;
+	final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+	AuthService({
+		required UserRepository userRepository,
+		required FeedbackRepository feedbackRepository,
+	})  : _userRepo = userRepository,
+			_feedbackRepo = feedbackRepository;
+
+	Stream<String?> authStateStream() {
+		return _firebaseAuth.authStateChanges().map((user) => user?.uid);
+	}
+
+	Future<bool> signInWithGoogle() async {
+		try {
+			final googleProvider = GoogleAuthProvider();
+			googleProvider.addScope('email');
+			googleProvider.addScope('profile');
+			googleProvider.setCustomParameters({
+				'prompt': 'select_account',
+			});
+
+			final userCredential =
+					await _firebaseAuth.signInWithPopup(googleProvider);
+			return userCredential.user != null;
+		} on FirebaseAuthException catch (e, stackTrace) {
+			AppLogger.error('AuthService.signInWithGoogle error', e, stackTrace);
+			if (e.code == 'popup-closed-by-user' ||
+					e.code == 'cancelled-popup-request') {
+				throw AuthCanceledException('Sign in cancelled');
+			}
+			throw AuthException(_friendlyAuthMessage(e, fallback: 'Unable to sign in. Please try again.'));
+		}
+	}
+
+	Future<void> signOut() async {
+		await _firebaseAuth.signOut();
+	}
+
+	Future<void> deleteCurrentAuthAccount() async {
+		final user = _firebaseAuth.currentUser;
+		if (user == null) return;
+		try {
+			await user.delete();
+		} on FirebaseAuthException catch (e, stackTrace) {
+			AppLogger.error('AuthService.deleteCurrentAuthAccount error', e, stackTrace);
+			if (e.code == 'requires-recent-login') {
+				throw AuthException(
+					'Re-authentication required before deleting account. Please sign in again and retry.',
+				);
+			}
+			throw AuthException('Unable to delete authentication account right now. Please try again.');
+		}
+	}
+
+	Future<void> reauthenticateWithGoogle() async {
+		final user = _firebaseAuth.currentUser;
+		if (user == null) {
+			throw AuthException('No authenticated user');
+		}
+		final googleProvider = GoogleAuthProvider();
+		googleProvider.addScope('email');
+		googleProvider.addScope('profile');
+		if (user.email != null && user.email!.isNotEmpty) {
+			googleProvider.setCustomParameters({
+				'login_hint': user.email!,
+			});
+		}
+
+		try {
+			await user.reauthenticateWithProvider(googleProvider);
+			return;
+		} on FirebaseAuthException catch (e, stackTrace) {
+			AppLogger.error('AuthService.reauthenticateWithGoogle error', e, stackTrace);
+			if (e.code == 'popup-closed-by-user' ||
+					e.code == 'cancelled-popup-request') {
+				throw AuthCanceledException('Re-authentication cancelled');
+			}
+			if (e.code == 'user-mismatch') {
+				throw AuthException('Please choose the same Google account you are currently signed in with.');
+			}
+			if (e.code == 'popup-blocked') {
+				throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
+			}
+
+			// Fallback for web popup edge-cases: refresh sign-in using popup.
+			try {
+				final credential = await _firebaseAuth.signInWithPopup(googleProvider);
+				if (credential.user == null || credential.user!.uid != user.uid) {
+					throw AuthException('Please choose the same Google account you are currently signed in with.');
+				}
+				return;
+			} on FirebaseAuthException catch (fallbackError, fallbackStackTrace) {
+				AppLogger.error('AuthService.reauthenticateWithGoogle fallback error', fallbackError, fallbackStackTrace);
+				if (fallbackError.code == 'popup-closed-by-user' ||
+						fallbackError.code == 'cancelled-popup-request') {
+					throw AuthCanceledException('Re-authentication cancelled');
+				}
+				if (fallbackError.code == 'popup-blocked') {
+					throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
+				}
+				if (fallbackError.code == 'user-mismatch') {
+					throw AuthException('Please choose the same Google account you are currently signed in with.');
+				}
+				throw AuthException(_friendlyAuthMessage(
+					fallbackError,
+					fallback: _friendlyAuthMessage(e, fallback: 'Unable to re-authenticate. Please try again.'),
+				));
+			}
+		}
+	}
+
+	String _friendlyAuthMessage(FirebaseAuthException e, {required String fallback}) {
+		switch (e.code) {
+			case 'network-request-failed':
+				return 'Network error. Please check your connection and try again.';
+			case 'too-many-requests':
+				return 'Too many attempts. Please wait a moment and try again.';
+			case 'user-disabled':
+				return 'This account is disabled. Please contact support.';
+			case 'operation-not-allowed':
+				return 'This sign-in method is not available right now.';
+			case 'invalid-credential':
+				return 'Authentication failed. Please sign in again.';
+			default:
+				return fallback;
+		}
+	}
+
+	Future<UserModel> bootstrapUser(String uid) async {
+		try {
+			final existing = await _userRepo.getUser(uid);
+			final feedbackSummary = await _feedbackRepo.getFeedbackForUser(uid);
+			final averageRating = feedbackSummary.isEmpty
+				? 0.0
+				: feedbackSummary.fold<int>(0, (sum, fb) => sum + fb.rating) /
+					feedbackSummary.length;
+			final totalSessions = feedbackSummary.length;
+			if (existing == null) {
+				final currentUser = _firebaseAuth.currentUser;
+				final now = DateTime.now();
+				final newUser = UserModel(
+					uid: uid,
+					name: currentUser?.displayName ?? '',
+					email: currentUser?.email ?? '',
+					avatarUrl: currentUser?.photoURL ?? '',
+					rating: averageRating,
+					totalSessions: totalSessions,
+					createdAt: now,
+					lastSeen: now,
+				);
+				await _userRepo.createUser(newUser);
+				await _userRepo.upsertPublicProfile(newUser);
+				return newUser;
+			}
+
+			final updated = existing.copyWith(
+				rating: averageRating,
+				totalSessions: totalSessions,
+				lastSeen: DateTime.now(),
+			);
+			await _userRepo.updateUser(updated);
+			await _userRepo.upsertPublicProfile(updated);
+			return updated;
+		} catch (e) {
+			if (_isOfflineFirestoreError(e)) {
+				return _fallbackUserFromAuth(uid);
+			}
+			rethrow;
+		}
+	}
+
+	bool _isOfflineFirestoreError(Object error) {
+		if (error is RepositoryException) {
+			return error.code == 'unavailable';
+		}
+		final message = error.toString().toLowerCase();
+		return message.contains('[cloud_firestore/unavailable]') ||
+				message.contains('client is offline') ||
+				message.contains('failed to get document because the client is offline');
+	}
+
+	UserModel _fallbackUserFromAuth(String uid) {
+		final currentUser = _firebaseAuth.currentUser;
+		final now = DateTime.now();
+		return UserModel(
+			uid: uid,
+			name: currentUser?.displayName ?? '',
+			email: currentUser?.email ?? '',
+			avatarUrl: currentUser?.photoURL ?? '',
+			rating: 0.0,
+			totalSessions: 0,
+			createdAt: now,
+			lastSeen: now,
+		);
+	}
+
+	Future<UserModel?> getUserById(String uid) {
+		return _userRepo.getPublicUser(uid);
+	}
+}
+
+class AuthException implements Exception {
+	final String message;
+	AuthException(this.message);
+	@override
+	String toString() => message;
+}
+
+class AuthCanceledException implements Exception {
+	final String message;
+	AuthCanceledException(this.message);
+	@override
+	String toString() => message;
+}
