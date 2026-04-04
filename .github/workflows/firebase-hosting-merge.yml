@@ -17,13 +17,23 @@ jobs:
           flutter-version: '3.41.1'
           channel: 'stable'
 
-      # 👇 Move into swapspace folder
+      # Install dependencies
       - run: flutter pub get
         working-directory: swapspace
 
+      # 🔥 Create .env file (FIX)
+      - name: Create .env file
+        working-directory: swapspace
+        run: |
+          echo "API_URL=${{ secrets.API_URL }}" >> .env
+          echo "STRIPE_KEY=${{ secrets.STRIPE_KEY }}" >> .env
+          echo "SOME_CONFIG=${{ secrets.SOME_CONFIG }}" >> .env
+
+      # Build web
       - run: flutter build web --pwa-strategy=none
         working-directory: swapspace
 
+      # Deploy to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
