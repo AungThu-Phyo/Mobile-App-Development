@@ -112,9 +112,8 @@ Future<void> _loadEnvironmentVariables() async {
     debugPrint('✅ dotenv loaded. Keys: ${dotenv.env.keys.toList()}');
     debugPrint('API_KEY empty? ${(dotenv.env['FIREBASE_WEB_API_KEY'] ?? '').isEmpty}');
   } catch (e, stack) {
-    debugPrint('❌ dotenv FAILED: $e');
+    debugPrint('⚠️ dotenv not loaded; using built-in Firebase fallback config. Error: $e');
     debugPrint(stack.toString());
-    rethrow;
   }
 }
 

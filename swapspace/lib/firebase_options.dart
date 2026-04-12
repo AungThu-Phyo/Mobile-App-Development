@@ -42,67 +42,65 @@ class DefaultFirebaseOptions {
   }
 
   static FirebaseOptions get web => FirebaseOptions(
-    apiKey: _required('FIREBASE_WEB_API_KEY'),
-    appId: _required('FIREBASE_WEB_APP_ID'),
-    messagingSenderId: _required('FIREBASE_WEB_MESSAGING_SENDER_ID'),
-    projectId: _required('FIREBASE_WEB_PROJECT_ID'),
-    authDomain: _optional('FIREBASE_WEB_AUTH_DOMAIN'),
-    storageBucket: _optional('FIREBASE_WEB_STORAGE_BUCKET'),
-    measurementId: _optional('FIREBASE_WEB_MEASUREMENT_ID'),
+    apiKey: _requiredWithFallback('FIREBASE_WEB_API_KEY', 'AIzaSyBKSsE0sjzy7oniW3JE5OYfus5voc_eXl4'),
+    appId: _requiredWithFallback('FIREBASE_WEB_APP_ID', '1:868778657512:web:0c0039ed1b7fc6f0d62b5d'),
+    messagingSenderId: _requiredWithFallback('FIREBASE_WEB_MESSAGING_SENDER_ID', '868778657512'),
+    projectId: _requiredWithFallback('FIREBASE_WEB_PROJECT_ID', 'swapspace-add2d'),
+    authDomain: _optionalWithFallback('FIREBASE_WEB_AUTH_DOMAIN', 'swapspace-add2d.firebaseapp.com'),
+    storageBucket: _optionalWithFallback('FIREBASE_WEB_STORAGE_BUCKET', 'swapspace-add2d.firebasestorage.app'),
+    measurementId: _optionalWithFallback('FIREBASE_WEB_MEASUREMENT_ID', 'G-SYY9R95H09'),
   );
 
   static FirebaseOptions get android => FirebaseOptions(
-    apiKey: _required('FIREBASE_ANDROID_API_KEY'),
-    appId: _required('FIREBASE_ANDROID_APP_ID'),
-    messagingSenderId: _required('FIREBASE_ANDROID_MESSAGING_SENDER_ID'),
-    projectId: _required('FIREBASE_ANDROID_PROJECT_ID'),
-    storageBucket: _optional('FIREBASE_ANDROID_STORAGE_BUCKET'),
+    apiKey: _requiredWithFallback('FIREBASE_ANDROID_API_KEY', 'AIzaSyDGn6LvLgH8mnn1PQp7lKAl2xWvroekvJk'),
+    appId: _requiredWithFallback('FIREBASE_ANDROID_APP_ID', '1:868778657512:android:d6b31b68cb619640d62b5d'),
+    messagingSenderId: _requiredWithFallback('FIREBASE_ANDROID_MESSAGING_SENDER_ID', '868778657512'),
+    projectId: _requiredWithFallback('FIREBASE_ANDROID_PROJECT_ID', 'swapspace-add2d'),
+    storageBucket: _optionalWithFallback('FIREBASE_ANDROID_STORAGE_BUCKET', 'swapspace-add2d.firebasestorage.app'),
   );
 
   static FirebaseOptions get ios => FirebaseOptions(
-    apiKey: _required('FIREBASE_IOS_API_KEY'),
-    appId: _required('FIREBASE_IOS_APP_ID'),
-    messagingSenderId: _required('FIREBASE_IOS_MESSAGING_SENDER_ID'),
-    projectId: _required('FIREBASE_IOS_PROJECT_ID'),
-    storageBucket: _optional('FIREBASE_IOS_STORAGE_BUCKET'),
-    iosBundleId: _optional('FIREBASE_IOS_BUNDLE_ID'),
+    apiKey: _requiredWithFallback('FIREBASE_IOS_API_KEY', 'AIzaSyBbtiHXc2uPMel2T4b1NmJKpp_ZswQMT2M'),
+    appId: _requiredWithFallback('FIREBASE_IOS_APP_ID', '1:868778657512:ios:7338f0ae25771892d62b5d'),
+    messagingSenderId: _requiredWithFallback('FIREBASE_IOS_MESSAGING_SENDER_ID', '868778657512'),
+    projectId: _requiredWithFallback('FIREBASE_IOS_PROJECT_ID', 'swapspace-add2d'),
+    storageBucket: _optionalWithFallback('FIREBASE_IOS_STORAGE_BUCKET', 'swapspace-add2d.firebasestorage.app'),
+    iosBundleId: _optionalWithFallback('FIREBASE_IOS_BUNDLE_ID', 'com.example.swapspace'),
   );
 
   static FirebaseOptions get macos => FirebaseOptions(
-    apiKey: _required('FIREBASE_MACOS_API_KEY'),
-    appId: _required('FIREBASE_MACOS_APP_ID'),
-    messagingSenderId: _required('FIREBASE_MACOS_MESSAGING_SENDER_ID'),
-    projectId: _required('FIREBASE_MACOS_PROJECT_ID'),
-    storageBucket: _optional('FIREBASE_MACOS_STORAGE_BUCKET'),
-    iosBundleId: _optional('FIREBASE_MACOS_BUNDLE_ID'),
+    apiKey: _requiredWithFallback('FIREBASE_MACOS_API_KEY', 'AIzaSyBbtiHXc2uPMel2T4b1NmJKpp_ZswQMT2M'),
+    appId: _requiredWithFallback('FIREBASE_MACOS_APP_ID', '1:868778657512:ios:7338f0ae25771892d62b5d'),
+    messagingSenderId: _requiredWithFallback('FIREBASE_MACOS_MESSAGING_SENDER_ID', '868778657512'),
+    projectId: _requiredWithFallback('FIREBASE_MACOS_PROJECT_ID', 'swapspace-add2d'),
+    storageBucket: _optionalWithFallback('FIREBASE_MACOS_STORAGE_BUCKET', 'swapspace-add2d.firebasestorage.app'),
+    iosBundleId: _optionalWithFallback('FIREBASE_MACOS_BUNDLE_ID', 'com.example.swapspace'),
   );
 
   static FirebaseOptions get windows => FirebaseOptions(
-    apiKey: _required('FIREBASE_WINDOWS_API_KEY'),
-    appId: _required('FIREBASE_WINDOWS_APP_ID'),
-    messagingSenderId: _required('FIREBASE_WINDOWS_MESSAGING_SENDER_ID'),
-    projectId: _required('FIREBASE_WINDOWS_PROJECT_ID'),
-    authDomain: _optional('FIREBASE_WINDOWS_AUTH_DOMAIN'),
-    storageBucket: _optional('FIREBASE_WINDOWS_STORAGE_BUCKET'),
-    measurementId: _optional('FIREBASE_WINDOWS_MEASUREMENT_ID'),
+    apiKey: _requiredWithFallback('FIREBASE_WINDOWS_API_KEY', 'AIzaSyBKSsE0sjzy7oniW3JE5OYfus5voc_eXl4'),
+    appId: _requiredWithFallback('FIREBASE_WINDOWS_APP_ID', '1:868778657512:web:b84204c64f8e9946d62b5d'),
+    messagingSenderId: _requiredWithFallback('FIREBASE_WINDOWS_MESSAGING_SENDER_ID', '868778657512'),
+    projectId: _requiredWithFallback('FIREBASE_WINDOWS_PROJECT_ID', 'swapspace-add2d'),
+    authDomain: _optionalWithFallback('FIREBASE_WINDOWS_AUTH_DOMAIN', 'swapspace-add2d.firebaseapp.com'),
+    storageBucket: _optionalWithFallback('FIREBASE_WINDOWS_STORAGE_BUCKET', 'swapspace-add2d.firebasestorage.app'),
+    measurementId: _optionalWithFallback('FIREBASE_WINDOWS_MEASUREMENT_ID', 'G-T1TG8Z3LBH'),
   );
 
-  static String _required(String key) {
+  static String _requiredWithFallback(String key, String fallback) {
     final value = dotenv.env[key]?.trim();
     final isPlaceholder = value != null && value.startsWith('your-');
     if (value == null || value.isEmpty || isPlaceholder) {
-      throw StateError(
-        'Missing or placeholder value for $key. Create swapspace/.env from .env.example and set real Firebase values.',
-      );
+      return fallback;
     }
 
     return value;
   }
 
-  static String? _optional(String key) {
+  static String? _optionalWithFallback(String key, String? fallback) {
     final value = dotenv.env[key]?.trim();
     if (value == null || value.isEmpty) {
-      return null;
+      return fallback;
     }
 
     return value;
