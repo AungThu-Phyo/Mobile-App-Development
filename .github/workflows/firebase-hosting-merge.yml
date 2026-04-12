@@ -17,33 +17,42 @@ jobs:
           flutter-version: '3.41.1'
           channel: 'stable'
 
-      # Install dependencies
       - run: flutter pub get
         working-directory: swapspace
 
       # Create .env file for web runtime config
       - name: Create .env file
         working-directory: swapspace
-        env:
-          WEB_SECRET: ${{ secrets.Web }}
-        run: |
-          test -n "$WEB_SECRET" || (echo "Missing Web secret" && exit 1)
-          printf "%s\n" "$WEB_SECRET" > .env
+        run: echo "${{ secrets.Web }}" > .env
 
+      # Verify .env has content
+      - name: Verify .env has content
+        working-directory: swapspace
+        run: |
+          echo "Line count: $(wc -l < .env)"
+          echo "Keys found:"
+          grep -o '^[^=]*' .env
+
+      # Validate required keys
       - name: Validate required Firebase web secrets
         working-directory: swapspace
-        env:
-          WEB_SECRET: ${{ secrets.Web }}
         run: |
-          test -n "$WEB_SECRET" || (echo "Missing Web secret" && exit 1)
-          grep -q '^FIREBASE_WEB_API_KEY=' .env || (echo "Missing FIREBASE_WEB_API_KEY in Web secret" && exit 1)
-          grep -q '^FIREBASE_WEB_APP_ID=' .env || (echo "Missing FIREBASE_WEB_APP_ID in Web secret" && exit 1)
-          grep -q '^FIREBASE_WEB_MESSAGING_SENDER_ID=' .env || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID in Web secret" && exit 1)
-          grep -q '^FIREBASE_WEB_PROJECT_ID=' .env || (echo "Missing FIREBASE_WEB_PROJECT_ID in Web secret" && exit 1)
+          grep -q '^FIREBASE_WEB_API_KEY=' .env              || (echo "Missing FIREBASE_WEB_API_KEY" && exit 1)
+          grep -q '^FIREBASE_WEB_APP_ID=' .env               || (echo "Missing FIREBASE_WEB_APP_ID" && exit 1)
+          grep -q '^FIREBASE_WEB_MESSAGING_SENDER_ID=' .env  || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID" && exit 1)
+          grep -q '^FIREBASE_WEB_PROJECT_ID=' .env           || (echo "Missing FIREBASE_WEB_PROJECT_ID" && exit 1)
+          echo "✅ All required keys present"
 
       # Build web
       - run: flutter build web --pwa-strategy=none
         working-directory: swapspace
+
+      # Verify .env was bundled into build output
+      - name: Verify .env in build output
+        working-directory: swapspace
+        run: |
+          cat build/web/assets/.env 2>/dev/null | grep -o '^[^=]*' \
+            || echo "❌ .env NOT found in build/web/assets/"
 
       # Deploy to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0
