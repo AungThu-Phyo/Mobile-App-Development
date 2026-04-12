@@ -99,8 +99,11 @@ void main() async {
 Future<void> _loadEnvironmentVariables() async {
   try {
     await dotenv.load(fileName: '.env');
-  } catch (e) {
-    debugPrint('Skipping .env asset load: $e');
+    debugPrint('✅ .env loaded. Keys found: ${dotenv.env.keys.toList()}');
+  } catch (e, stack) {
+    debugPrint('❌ Failed to load .env: $e');
+    debugPrint(stack.toString());
+    rethrow; // ← let the crash happen so you see the real error
   }
 }
 
