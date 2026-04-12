@@ -57,6 +57,13 @@ jobs:
           grep -Eq '^FIREBASE_WEB_API_KEY=.+$' build/web/assets/.env || (echo "❌ build asset .env is invalid" && exit 1)
           echo "✅ build/web/assets/.env exists and contains Firebase web keys"
 
+      # Backward compatibility for cached clients still requesting /.env
+      - name: Create root .env compatibility file
+        working-directory: swapspace
+        run: |
+          cp build/web/assets/.env build/web/.env
+          [ -f build/web/.env ] || (echo "❌ failed to create root .env compatibility file" && exit 1)
+
       # Deploy to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
