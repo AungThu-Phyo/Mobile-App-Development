@@ -108,7 +108,7 @@ void main() async {
 
 Future<void> _loadEnvironmentVariables() async {
   try {
-    final envFileName = kIsWeb ? 'assets/.env' : '.env';
+    final envFileName = kIsWeb ? '/assets/.env' : '.env';
     await dotenv.load(fileName: envFileName);
     debugPrint('✅ dotenv loaded. Keys: ${dotenv.env.keys.toList()}');
     debugPrint('API_KEY empty? ${(dotenv.env['FIREBASE_WEB_API_KEY'] ?? '').isEmpty}');
