@@ -29,7 +29,9 @@ jobs:
       # Create .env file for web runtime config
       - name: Create .env file
         working-directory: swapspace
-        run: echo "${{ secrets.Web }}" > .env
+        run: |
+          printf "%s" "${{ secrets.WEB }}" > .env
+          [ -s .env ] || (echo "❌ WEB secret is empty" && exit 1)
 
       # Verify .env has content
       - name: Verify .env has content
@@ -43,11 +45,11 @@ jobs:
       - name: Validate required Firebase web secrets
         working-directory: swapspace
         run: |
-          grep -q '^FIREBASE_WEB_API_KEY=' .env              || (echo "Missing FIREBASE_WEB_API_KEY" && exit 1)
-          grep -q '^FIREBASE_WEB_APP_ID=' .env               || (echo "Missing FIREBASE_WEB_APP_ID" && exit 1)
-          grep -q '^FIREBASE_WEB_MESSAGING_SENDER_ID=' .env  || (echo "Missing FIREBASE_WEB_MESSAGING_SENDER_ID" && exit 1)
-          grep -q '^FIREBASE_WEB_PROJECT_ID=' .env           || (echo "Missing FIREBASE_WEB_PROJECT_ID" && exit 1)
-          echo "✅ All required keys present"
+          grep -Eq '^FIREBASE_WEB_API_KEY=.+$' .env              || (echo "Missing/empty FIREBASE_WEB_API_KEY" && exit 1)
+          grep -Eq '^FIREBASE_WEB_APP_ID=.+$' .env               || (echo "Missing/empty FIREBASE_WEB_APP_ID" && exit 1)
+          grep -Eq '^FIREBASE_WEB_MESSAGING_SENDER_ID=.+$' .env  || (echo "Missing/empty FIREBASE_WEB_MESSAGING_SENDER_ID" && exit 1)
+          grep -Eq '^FIREBASE_WEB_PROJECT_ID=.+$' .env           || (echo "Missing/empty FIREBASE_WEB_PROJECT_ID" && exit 1)
+          echo "✅ All required web keys are non-empty"
 
       # Build web
       - name: Build Flutter Web
@@ -58,8 +60,9 @@ jobs:
       - name: Verify .env in build output
         working-directory: swapspace
         run: |
-          cat build/web/assets/.env 2>/dev/null | grep -o '^[^=]*' \
-            || echo "❌ .env NOT found in build/web/assets/"
+          [ -f build/web/assets/.env ] || (echo "❌ .env NOT found in build/web/assets/" && exit 1)
+          grep -Eq '^FIREBASE_WEB_API_KEY=.+$' build/web/assets/.env || (echo "❌ build asset .env is invalid" && exit 1)
+          echo "✅ build/web/assets/.env exists and contains Firebase web keys"
 
       # Deploy preview to Firebase
       - name: Deploy Preview to Firebase
