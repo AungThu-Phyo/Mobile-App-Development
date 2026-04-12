@@ -107,16 +107,53 @@ void main() async {
 }
 
 Future<void> _loadEnvironmentVariables() async {
-  try {
-    final envFileName = kIsWeb ? '/assets/.env' : '.env';
-    await dotenv.load(fileName: envFileName);
-    debugPrint('✅ dotenv loaded. Keys: ${dotenv.env.keys.toList()}');
-    debugPrint('API_KEY empty? ${(dotenv.env['FIREBASE_WEB_API_KEY'] ?? '').isEmpty}');
-  } catch (e, stack) {
-    debugPrint('❌ dotenv FAILED: $e');
-    debugPrint(stack.toString());
-    rethrow;
+  final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+  final envPaths = kIsWeb
+      ? [
+          '/assets/.env?v=$cacheBuster',
+          '/.env?v=$cacheBuster',
+          '/assets/.env',
+          '/.env',
+          'assets/.env',
+          '.env',
+        ]
+      : ['.env'];
+
+  Object? lastError;
+  StackTrace? lastStack;
+
+  for (final envFileName in envPaths) {
+    try {
+      await dotenv.load(fileName: envFileName);
+
+      final apiKey = (dotenv.env['FIREBASE_WEB_API_KEY'] ?? '').trim();
+      final hasHtmlLikeKeys = dotenv.env.keys.any(
+        (key) => key.trimLeft().startsWith('<'),
+      );
+
+      if (!kIsWeb || (apiKey.isNotEmpty && !hasHtmlLikeKeys)) {
+        debugPrint('✅ dotenv loaded from $envFileName. Keys: ${dotenv.env.keys.toList()}');
+        debugPrint('API_KEY empty? ${apiKey.isEmpty}');
+        return;
+      }
+
+      debugPrint(
+        '⚠️ dotenv from $envFileName looked invalid (html-like or missing API key), trying next path.',
+      );
+    } catch (e, stack) {
+      lastError = e;
+      lastStack = stack;
+      debugPrint('⚠️ dotenv load failed from $envFileName: $e');
+    }
   }
+
+  debugPrint('❌ dotenv FAILED after trying all paths: $lastError');
+  if (lastStack != null) {
+    debugPrint(lastStack.toString());
+  }
+  throw StateError(
+    'Unable to load a valid .env file. Ensure /assets/.env exists in deployed web assets and contains FIREBASE_WEB_API_KEY.',
+  );
 }
 
 Future<void> _activateAppCheck() async {
