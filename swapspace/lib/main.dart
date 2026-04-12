@@ -29,8 +29,18 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await _loadEnvironmentVariables();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('✅ Firebase initialized successfully');
+  } catch (e, stack) {
+    debugPrint('❌ Firebase.initializeApp FAILED: $e');
+    debugPrint(stack.toString());
+    rethrow;
+  }
+
   await _activateAppCheck();
 
   final userRepository = UserRepository();
@@ -99,29 +109,28 @@ void main() async {
 Future<void> _loadEnvironmentVariables() async {
   try {
     await dotenv.load(fileName: '.env');
-    debugPrint('✅ .env loaded. Keys found: ${dotenv.env.keys.toList()}');
+    debugPrint('✅ dotenv loaded. Keys: ${dotenv.env.keys.toList()}');
+    debugPrint('API_KEY empty? ${(dotenv.env['FIREBASE_WEB_API_KEY'] ?? '').isEmpty}');
   } catch (e, stack) {
-    debugPrint('❌ Failed to load .env: $e');
+    debugPrint('❌ dotenv FAILED: $e');
     debugPrint(stack.toString());
-    rethrow; // ← let the crash happen so you see the real error
+    rethrow;
   }
 }
 
 Future<void> _activateAppCheck() async {
   if (kIsWeb) {
-    // Web App Check needs a reCAPTCHA provider; skip to avoid breaking local web debug.
     return;
   }
 
   try {
     await FirebaseAppCheck.instance.activate(
-      providerAndroid:
-          kDebugMode
+      providerAndroid: kDebugMode
           ? const AndroidDebugProvider()
           : const AndroidPlayIntegrityProvider(),
       providerApple: kDebugMode
-        ? const AppleDebugProvider()
-        : const AppleAppAttestProvider(),
+          ? const AppleDebugProvider()
+          : const AppleAppAttestProvider(),
     );
   } catch (e) {
     debugPrint('Firebase App Check activation skipped: $e');
