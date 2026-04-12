@@ -44,7 +44,7 @@ jobs:
           echo "✅ All required keys present"
 
       # Build web
-       - run: flutter build web --pwa-strategy=none --profile
+      - run: flutter build web --pwa-strategy=none --profile
         working-directory: swapspace
 
       # Verify .env was bundled into build output
