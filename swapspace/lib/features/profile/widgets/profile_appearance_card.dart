@@ -8,6 +8,7 @@ class ProfileAppearanceCard extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const ProfileAppearanceCard({
+    super.key,
     required this.isDarkMode,
     required this.onChanged,
   });

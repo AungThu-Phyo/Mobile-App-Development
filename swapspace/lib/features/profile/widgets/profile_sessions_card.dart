@@ -13,6 +13,7 @@ class ProfileSessionsCard extends StatelessWidget {
   final ValueChanged<int> onSelectTab;
 
   const ProfileSessionsCard({
+    super.key,
     required this.selectedTab,
     required this.onSelectTab,
   });
@@ -56,14 +57,17 @@ class ProfileSessionsCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Consumer<SessionProvider>(
               builder: (context, provider, _) {
-                if (provider.isLoading) {
+                final uid = context.read<AuthProvider>().userId ?? '';
+                final isCreatedTab = selectedTab == 0;
+                final isJoinedTab = !isCreatedTab;
+
+                if ((isCreatedTab && provider.isLoadingCreatedSessions) ||
+                    (isJoinedTab && provider.isLoadingJoinedSessions)) {
                   return const Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
-
-                final uid = context.read<AuthProvider>().userId ?? '';
 
                 if (provider.error != null && provider.error!.isNotEmpty) {
                   return Padding(
@@ -83,9 +87,15 @@ class ProfileSessionsCard extends StatelessWidget {
                         OutlinedButton(
                           onPressed: uid.isEmpty
                               ? null
-                              : () => context
-                                    .read<SessionProvider>()
-                                    .loadMySessions(uid),
+                              : () {
+                                  final sessionProvider =
+                                      context.read<SessionProvider>();
+                                  if (isCreatedTab) {
+                                    sessionProvider.loadCreatedSessions(uid);
+                                  } else {
+                                    sessionProvider.loadJoinedSessions(uid);
+                                  }
+                                },
                           child: const Text('Retry'),
                         ),
                       ],
@@ -93,18 +103,9 @@ class ProfileSessionsCard extends StatelessWidget {
                   );
                 }
 
-                final sessions = selectedTab == 0
-                    ? provider.mySessions
-                          .where((s) => s.creatorUid == uid)
-                          .toList()
-                    : provider.mySessions
-                          .where(
-                            (s) =>
-                                s.creatorUid != uid &&
-                                (s.partnerUid == uid ||
-                                    s.participantUids.contains(uid)),
-                          )
-                          .toList();
+                final sessions = isCreatedTab
+                    ? provider.createdSessions
+                  : provider.joinedSessions;
 
                 if (sessions.isEmpty) {
                   return Padding(
@@ -125,8 +126,19 @@ class ProfileSessionsCard extends StatelessWidget {
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: sessions.length,
+                  itemCount: sessions.length +
+                      (((isCreatedTab && provider.isLoadingMoreCreatedSessions) ||
+                          (isJoinedTab && provider.isLoadingMoreJoinedSessions))
+                          ? 1
+                          : 0),
                   itemBuilder: (context, index) {
+                    if (index >= sessions.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
                     return Padding(
                       padding: EdgeInsets.only(
                         bottom: index == sessions.length - 1
@@ -142,6 +154,47 @@ class ProfileSessionsCard extends StatelessWidget {
                 );
               },
             ),
+            if (selectedTab == 0 || selectedTab == 1)
+              Consumer<SessionProvider>(
+                builder: (context, provider, _) {
+                  final uid = context.read<AuthProvider>().userId ?? '';
+                  final canLoadMore = selectedTab == 0
+                      ? provider.hasMoreCreatedSessions
+                      : provider.hasMoreJoinedSessions;
+                  if (!canLoadMore || uid.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final isLoadingMore = selectedTab == 0
+                      ? provider.isLoadingMoreCreatedSessions
+                      : provider.isLoadingMoreJoinedSessions;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: isLoadingMore
+                            ? null
+                            : () {
+                                final sessionProvider =
+                                    context.read<SessionProvider>();
+                                if (selectedTab == 0) {
+                                  sessionProvider.loadMoreCreatedSessions(uid);
+                                } else {
+                                  sessionProvider.loadMoreJoinedSessions(uid);
+                                }
+                              },
+                        child: Text(
+                          isLoadingMore
+                              ? 'Loading...'
+                              : 'Load More',
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),

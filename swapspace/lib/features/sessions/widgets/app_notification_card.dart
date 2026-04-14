@@ -10,7 +10,7 @@ import '../../../providers/notification_provider.dart';
 class AppNotificationCard extends StatelessWidget {
   final NotificationModel notification;
 
-  const AppNotificationCard({required this.notification});
+  const AppNotificationCard({super.key, required this.notification});
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);

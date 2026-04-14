@@ -11,11 +11,17 @@ abstract class BaseStateProvider extends ChangeNotifier {
   String? get error => _error;
 
   void setLoading(bool value) {
+    if (_isLoading == value) {
+      return;
+    }
     _isLoading = value;
     notifyListeners();
   }
 
   void setError(String? value) {
+    if (_error == value) {
+      return;
+    }
     _error = value;
     notifyListeners();
   }

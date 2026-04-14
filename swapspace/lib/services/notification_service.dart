@@ -1,5 +1,20 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/notification_model.dart';
+import '../repositories/paginated_query_result.dart';
 import '../repositories/notification_repository.dart';
+
+class NotificationPageResult {
+  final List<NotificationModel> items;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? lastDocument;
+  final bool hasMore;
+
+  const NotificationPageResult({
+    required this.items,
+    required this.lastDocument,
+    required this.hasMore,
+  });
+}
 
 class NotificationService {
   final NotificationRepository _repo;
@@ -46,9 +61,27 @@ class NotificationService {
   }
 
   Future<List<NotificationModel>> fetchNotifications(String uid) async {
-    final list = await _repo.getForUser(uid);
-    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list;
+    final firstPage = await fetchNotificationsPage(uid: uid);
+    return firstPage.items;
+  }
+
+  Future<NotificationPageResult> fetchNotificationsPage({
+    required String uid,
+    int pageSize = NotificationRepository.defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    final PaginatedQueryResult<NotificationModel> page =
+        await _repo.getForUserPage(
+          uid: uid,
+          pageSize: pageSize,
+          startAfterDocument: startAfterDocument,
+        );
+
+    return NotificationPageResult(
+      items: page.items,
+      lastDocument: page.lastDocument,
+      hasMore: page.hasMore,
+    );
   }
 
   /// Calculate unread notification count from a list of notifications

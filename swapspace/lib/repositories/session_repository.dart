@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/errors/repository_exception.dart';
 import '../models/session_model.dart';
+import 'paginated_query_result.dart';
 
 class SessionRepository {
+  static const int defaultPageSize = 20;
+  static const int _whereInBatchSize = 10;
+
   final CollectionReference<Map<String, dynamic>> _sessionsRef =
       FirebaseFirestore.instance.collection('sessions');
 
@@ -66,6 +70,44 @@ class SessionRepository {
     }
   }
 
+  /// Fetches multiple sessions by IDs in batched whereIn queries.
+  Future<Map<String, SessionModel>> getByIds(List<String> sessionIds) async {
+    try {
+      final normalizedIds =
+          sessionIds.where((id) => id.trim().isNotEmpty).toSet().toList();
+      if (normalizedIds.isEmpty) return {};
+
+      final result = <String, SessionModel>{};
+      for (final batch in _chunks(normalizedIds, _whereInBatchSize)) {
+        final snapshot = await _sessionsRef
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final session = SessionModel.fromMap(data);
+          final key = session.sessionId.isNotEmpty ? session.sessionId : doc.id;
+          result[key] =
+              session.sessionId.isNotEmpty ? session : session.copyWith(sessionId: doc.id);
+        }
+      }
+
+      return result;
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load sessions by IDs',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load sessions by IDs',
+        cause: e,
+      );
+    }
+  }
+
   /// Updates an existing session document.
   Future<void> update(SessionModel session) async {
     try {
@@ -119,6 +161,7 @@ class SessionRepository {
     try {
       final snapshot = await _visibleSessionsQuery()
           .where('status', isEqualTo: status)
+          .orderBy('date')
           .get();
       return snapshot.docs
           .map((doc) => SessionModel.fromMap(doc.data()))
@@ -143,6 +186,7 @@ class SessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('creatorUid', isEqualTo: uid)
+          .orderBy('date', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => SessionModel.fromMap(doc.data()))
@@ -167,6 +211,7 @@ class SessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('partnerUid', isEqualTo: uid)
+          .orderBy('date', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => SessionModel.fromMap(doc.data()))
@@ -191,6 +236,7 @@ class SessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('participantUids', arrayContains: uid)
+          .orderBy('date', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => SessionModel.fromMap(doc.data()))
@@ -208,5 +254,168 @@ class SessionRepository {
         cause: e,
       );
     }
+  }
+
+  /// Paginates visible sessions by status using server-side ordering and cursor.
+  Future<PaginatedQueryResult<SessionModel>> getSessionsByStatusPage({
+    required String status,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    try {
+      var query = _visibleSessionsQuery()
+          .where('status', isEqualTo: status)
+          .orderBy('date')
+          .limit(pageSize + 1);
+
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+      }
+
+      final snapshot = await query.get();
+      final docs = snapshot.docs;
+      final hasMore = docs.length > pageSize;
+      final pageDocs = hasMore ? docs.take(pageSize).toList() : docs;
+
+      return PaginatedQueryResult<SessionModel>(
+        items: pageDocs.map((doc) => SessionModel.fromMap(doc.data())).toList(),
+        lastDocument: pageDocs.isNotEmpty ? pageDocs.last : null,
+        hasMore: hasMore,
+      );
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load paginated sessions',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load paginated sessions',
+        cause: e,
+      );
+    }
+  }
+
+  /// Paginates creator sessions by newest first.
+  Future<PaginatedQueryResult<SessionModel>> getSessionsByCreatorPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getUserSessionPage(
+      filterField: 'creatorUid',
+      uid: uid,
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated created sessions',
+    );
+  }
+
+  /// Paginates partner sessions by newest first.
+  Future<PaginatedQueryResult<SessionModel>> getSessionsByPartnerPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getUserSessionPage(
+      filterField: 'partnerUid',
+      uid: uid,
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated partner sessions',
+    );
+  }
+
+  /// Paginates participant sessions by newest first.
+  Future<PaginatedQueryResult<SessionModel>> getSessionsByParticipantPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    try {
+      var query = _sessionsRef
+          .where('participantUids', arrayContains: uid)
+          .orderBy('date', descending: true)
+          .limit(pageSize + 1);
+
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+      }
+
+      final snapshot = await query.get();
+      final docs = snapshot.docs;
+      final hasMore = docs.length > pageSize;
+      final pageDocs = hasMore ? docs.take(pageSize).toList() : docs;
+
+      return PaginatedQueryResult<SessionModel>(
+        items: pageDocs.map((doc) => SessionModel.fromMap(doc.data())).toList(),
+        lastDocument: pageDocs.isNotEmpty ? pageDocs.last : null,
+        hasMore: hasMore,
+      );
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load paginated joined sessions',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load paginated joined sessions',
+        cause: e,
+      );
+    }
+  }
+
+  Future<PaginatedQueryResult<SessionModel>> _getUserSessionPage({
+    required String filterField,
+    required String uid,
+    required int pageSize,
+    required QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+    required String errorMessage,
+  }) async {
+    try {
+      var query = _sessionsRef
+          .where(filterField, isEqualTo: uid)
+          .orderBy('date', descending: true)
+          .limit(pageSize + 1);
+
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+      }
+
+      final snapshot = await query.get();
+      final docs = snapshot.docs;
+      final hasMore = docs.length > pageSize;
+      final pageDocs = hasMore ? docs.take(pageSize).toList() : docs;
+
+      return PaginatedQueryResult<SessionModel>(
+        items: pageDocs.map((doc) => SessionModel.fromMap(doc.data())).toList(),
+        lastDocument: pageDocs.isNotEmpty ? pageDocs.last : null,
+        hasMore: hasMore,
+      );
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: errorMessage,
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: errorMessage,
+        cause: e,
+      );
+    }
+  }
+
+  List<List<String>> _chunks(List<String> values, int size) {
+    final chunks = <List<String>>[];
+    for (var i = 0; i < values.length; i += size) {
+      final end = (i + size < values.length) ? i + size : values.length;
+      chunks.add(values.sublist(i, end));
+    }
+    return chunks;
   }
 }

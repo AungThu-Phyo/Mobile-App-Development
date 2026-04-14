@@ -430,7 +430,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
-            onPressed: () => _completeSession(context),
+            onPressed: () => _completeSession(),
           ),
         ),
       );
@@ -473,14 +473,17 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             ),
             onPressed: () async {
               final provider = context.read<SessionProvider>();
+              final messenger = ScaffoldMessenger.of(context);
+              final router = GoRouter.of(context);
               final success = await provider.cancelSession(
                 widget.session.sessionId,
               );
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (!mounted) return;
+              if (success) {
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Session cancelled')),
                 );
-                context.go(RouteNames.home);
+                router.go(RouteNames.home);
               }
             },
           ),
@@ -505,6 +508,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             ),
             onPressed: () async {
               final authProvider = context.read<AuthProvider>();
+              final sessionProvider = context.read<SessionProvider>();
+              final messenger = ScaffoldMessenger.of(context);
+              final router = GoRouter.of(context);
               final userName = authProvider.currentUser?.name ?? '';
               final provider = context.read<JoinRequestProvider>();
               final success = await provider.leaveSession(
@@ -512,12 +518,13 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                 uid: currentUid,
                 userName: userName,
               );
-              if (success && mounted) {
-                context.read<SessionProvider>().loadOpenSessions();
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (!mounted) return;
+              if (success) {
+                sessionProvider.loadOpenSessions();
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Leave request sent to creator')),
                 );
-                context.go(RouteNames.home);
+                router.go(RouteNames.home);
               }
             },
           ),
@@ -574,7 +581,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     return Column(children: buttons);
   }
 
-  Future<void> _completeSession(BuildContext context) async {
+  Future<void> _completeSession() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -604,13 +613,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       updatedAt: DateTime.now(),
     );
     final success = await provider.updateSession(updated);
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+    if (success) {
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Session completed! Please give feedback.'),
         ),
       );
-      context.go(RouteNames.feedback, extra: updated);
+      router.go(RouteNames.feedback, extra: updated);
     }
   }
 
@@ -797,6 +807,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                               ),
                               onPressed: () async {
                                 Navigator.pop(ctx);
+                                final messenger = ScaffoldMessenger.of(context);
                                 final provider = context
                                     .read<JoinRequestProvider>();
                                 final authProvider = context
@@ -811,19 +822,18 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                   sessionTitle: widget.session.title,
                                   message: messageController.text.trim(),
                                 );
-                                if (mounted) {
-                                  if (success) {
-                                    setState(() => _requestSent = true);
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          provider.error ??
-                                              'Failed to send request',
-                                        ),
+                                if (!mounted) return;
+                                if (success) {
+                                  setState(() => _requestSent = true);
+                                } else {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        provider.error ??
+                                            'Failed to send request',
                                       ),
-                                    );
-                                  }
+                                    ),
+                                  );
                                 }
                               },
                             ),

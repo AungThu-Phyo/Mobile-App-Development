@@ -8,7 +8,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  build_and_preview:
+  ci:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
 
@@ -21,9 +21,18 @@ jobs:
         with:
           flutter-version: '3.41.1'
           channel: 'stable'
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
+        working-directory: swapspace
+
+      - name: Static analysis
+        run: flutter analyze
+        working-directory: swapspace
+
+      - name: Run tests
+        run: flutter test
         working-directory: swapspace
 
       # Create .env file for web runtime config
@@ -70,6 +79,28 @@ jobs:
         run: |
           cp build/web/assets/.env build/web/.env
           [ -f build/web/.env ] || (echo "❌ failed to create root .env compatibility file" && exit 1)
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-pr
+          path: swapspace/build/web
+          if-no-files-found: error
+
+  deploy_preview:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build-pr
+          path: swapspace/build/web
 
       # Deploy preview to Firebase
       - name: Deploy Preview to Firebase

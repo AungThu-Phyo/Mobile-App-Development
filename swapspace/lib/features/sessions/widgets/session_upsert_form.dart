@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/session_constants.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/input_validator.dart';
 import 'session_form_components.dart';
@@ -136,7 +135,7 @@ class SessionUpsertForm extends StatelessWidget {
                 const Text('Activity Type', style: AppTextStyles.labelLarge),
                 const SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String>(
-                  value: selectedActivityType,
+                  initialValue: selectedActivityType,
                   decoration: _fieldDecor(),
                   items: activityTypes
                       .map(

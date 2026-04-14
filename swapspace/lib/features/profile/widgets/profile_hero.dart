@@ -8,7 +8,7 @@ import 'profile_header.dart';
 class ProfileHero extends StatelessWidget {
   final UserModel user;
 
-  const ProfileHero({required this.user});
+  const ProfileHero({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {

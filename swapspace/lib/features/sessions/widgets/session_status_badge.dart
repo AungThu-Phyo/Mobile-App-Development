@@ -5,7 +5,7 @@ import '../../../core/constants/app_text_styles.dart';
 
 class SessionStatusBadge extends StatelessWidget {
   final String status;
-  const SessionStatusBadge({required this.status});
+  const SessionStatusBadge({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {

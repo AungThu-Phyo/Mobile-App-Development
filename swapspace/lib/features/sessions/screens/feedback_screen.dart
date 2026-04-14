@@ -35,7 +35,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _loadData() async {
-      final currentUid = context.read<AuthProvider>().userId ?? '';
+    final authProvider = context.read<AuthProvider>();
+    final currentUid = authProvider.userId ?? '';
     final feedbackProvider = context.read<FeedbackProvider>();
 
     final otherUids = widget.session.participantUids
@@ -49,18 +50,19 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
 
     final List<UserModel> reviewees = [];
-    for (final uid in otherUids) {
-      try {
-        final user = await context.read<AuthProvider>().getUserById(uid);
+    try {
+      final usersById = await authProvider.getUsersByIds(otherUids);
+      for (final uid in otherUids) {
+        final user = usersById[uid];
         if (user != null) {
           reviewees.add(user);
           _ratings[uid] = 0;
           _didShowUps[uid] = true;
           _commentControllers[uid] = TextEditingController();
         }
-      } catch (e, stackTrace) {
-        AppLogger.error('FeedbackScreen._loadData reviewee fetch error', e, stackTrace);
       }
+    } catch (e, stackTrace) {
+      AppLogger.error('FeedbackScreen._loadData reviewee fetch error', e, stackTrace);
     }
 
     if (mounted) {

@@ -9,6 +9,7 @@ class SectionShell extends StatelessWidget {
   final Widget child;
 
   const SectionShell({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.child,

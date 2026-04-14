@@ -1,7 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../core/constants/session_constants.dart';
 import '../models/join_request_model.dart';
+import '../models/session_model.dart';
+import '../models/user_model.dart';
+import '../repositories/paginated_query_result.dart';
 import '../repositories/join_request_repository.dart';
 import '../repositories/session_repository.dart';
+import '../repositories/user_repository.dart';
 import 'notification_service.dart';
 
 class AcceptRequestResult {
@@ -24,42 +30,92 @@ class AcceptRequestResult {
   });
 }
 
+class JoinRequestPageResult {
+  final List<JoinRequestModel> items;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? lastDocument;
+  final bool hasMore;
+
+  const JoinRequestPageResult({
+    required this.items,
+    required this.lastDocument,
+    required this.hasMore,
+  });
+}
+
 class JoinRequestService {
   final JoinRequestRepository _requestRepo;
   final SessionRepository _sessionRepo;
+  final UserRepository _userRepo;
   final NotificationService _notificationService;
 
   JoinRequestService({
     required JoinRequestRepository requestRepository,
     required SessionRepository sessionRepository,
+    required UserRepository userRepository,
     required NotificationService notificationService,
   })  : _requestRepo = requestRepository,
         _sessionRepo = sessionRepository,
+        _userRepo = userRepository,
         _notificationService = notificationService;
 
+  Future<Map<String, SessionModel>> loadSessionsByIds(List<String> sessionIds) {
+    return _sessionRepo.getByIds(sessionIds);
+  }
+
+  Future<Map<String, UserModel>> loadUsersByIds(List<String> uids) {
+    return _userRepo.getPublicUsersByIds(uids);
+  }
+
   Stream<List<JoinRequestModel>> listenIncomingRequests(String uid) {
-    return _requestRepo.streamForCreator(uid).map((requests) {
-      // Filter for pending status + sort by creation date (newest first)
-      return requests
-          .where((r) => r.status == JoinRequestStatus.pending)
-          .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    });
+    return _requestRepo.streamForCreator(uid).map((requests) => requests.toList());
   }
 
   Future<List<JoinRequestModel>> loadIncomingRequests(String uid) async {
-    final requests = await _requestRepo.getForCreator(uid);
-    // Filter for pending status + sort by creation date (newest first)
-    return requests
-        .where((r) => r.status == JoinRequestStatus.pending)
-        .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final firstPage = await loadIncomingRequestsPage(uid: uid);
+    return firstPage.items;
+  }
+
+  Future<JoinRequestPageResult> loadIncomingRequestsPage({
+    required String uid,
+    int pageSize = JoinRequestRepository.defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    final PaginatedQueryResult<JoinRequestModel> page =
+        await _requestRepo.getPendingForCreatorPage(
+          uid: uid,
+          pageSize: pageSize,
+          startAfterDocument: startAfterDocument,
+        );
+
+    return JoinRequestPageResult(
+      items: page.items,
+      lastDocument: page.lastDocument,
+      hasMore: page.hasMore,
+    );
   }
 
   Future<List<JoinRequestModel>> loadOutgoingRequests(String uid) async {
-    final requests = await _requestRepo.getFromUser(uid);
-    // Sort by creation date (newest first)
-    return requests..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final firstPage = await loadOutgoingRequestsPage(uid: uid);
+    return firstPage.items;
+  }
+
+  Future<JoinRequestPageResult> loadOutgoingRequestsPage({
+    required String uid,
+    int pageSize = JoinRequestRepository.defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    final PaginatedQueryResult<JoinRequestModel> page =
+        await _requestRepo.getFromUserPage(
+          uid: uid,
+          pageSize: pageSize,
+          startAfterDocument: startAfterDocument,
+        );
+
+    return JoinRequestPageResult(
+      items: page.items,
+      lastDocument: page.lastDocument,
+      hasMore: page.hasMore,
+    );
   }
 
   Future<void> sendJoinRequest({

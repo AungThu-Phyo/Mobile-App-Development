@@ -6,6 +6,8 @@ import '../repositories/feedback_repository.dart';
 import '../repositories/user_repository.dart';
 
 class AuthService {
+	static const Duration _lastSeenWriteInterval = Duration(minutes: 15);
+
 	final UserRepository _userRepo;
 	final FeedbackRepository _feedbackRepo;
 	final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -145,8 +147,8 @@ class AuthService {
 				: feedbackSummary.fold<int>(0, (sum, fb) => sum + fb.rating) /
 					feedbackSummary.length;
 			final totalSessions = feedbackSummary.length;
+			final currentUser = _firebaseAuth.currentUser;
 			if (existing == null) {
-				final currentUser = _firebaseAuth.currentUser;
 				final now = DateTime.now();
 				final newUser = UserModel(
 					uid: uid,
@@ -163,13 +165,33 @@ class AuthService {
 				return newUser;
 			}
 
+			final now = DateTime.now();
+			final shouldUpdateLastSeen =
+				now.difference(existing.lastSeen) >= _lastSeenWriteInterval;
+
+			final displayName = (currentUser?.displayName ?? '').trim();
+			final resolvedName = displayName.isNotEmpty ? displayName : existing.name;
+			final resolvedAvatarUrl =
+					(currentUser?.photoURL ?? '').trim().isNotEmpty
+						? currentUser!.photoURL!.trim()
+						: existing.avatarUrl;
+
 			final updated = existing.copyWith(
+				name: resolvedName,
+				avatarUrl: resolvedAvatarUrl,
 				rating: averageRating,
 				totalSessions: totalSessions,
-				lastSeen: DateTime.now(),
+				lastSeen: shouldUpdateLastSeen ? now : existing.lastSeen,
 			);
-			await _userRepo.updateUser(updated);
-			await _userRepo.upsertPublicProfile(updated);
+
+			if (_shouldWriteUserProfile(existing, updated)) {
+				await _userRepo.updateUser(updated);
+			}
+
+			if (_shouldWritePublicProfile(existing, updated)) {
+				await _userRepo.upsertPublicProfile(updated);
+			}
+
 			return updated;
 		} catch (e) {
 			if (_isOfflineFirestoreError(e)) {
@@ -206,6 +228,44 @@ class AuthService {
 
 	Future<UserModel?> getUserById(String uid) {
 		return _userRepo.getPublicUser(uid);
+	}
+
+	Future<Map<String, UserModel>> getUsersByIds(List<String> uids) {
+		return _userRepo.getPublicUsersByIds(uids);
+	}
+
+	bool _shouldWriteUserProfile(UserModel current, UserModel next) {
+		return current.name != next.name ||
+				current.avatarUrl != next.avatarUrl ||
+				current.rating != next.rating ||
+				current.totalSessions != next.totalSessions ||
+				current.lastSeen != next.lastSeen;
+	}
+
+	bool _shouldWritePublicProfile(UserModel current, UserModel next) {
+		return current.name != next.name ||
+				current.avatarUrl != next.avatarUrl ||
+				current.rating != next.rating ||
+				current.totalSessions != next.totalSessions ||
+				current.faculty != next.faculty ||
+				current.bio != next.bio ||
+				current.interactionPreference != next.interactionPreference ||
+				!_sameStringList(
+					current.activityPreferences,
+					next.activityPreferences,
+				);
+	}
+
+	bool _sameStringList(List<String> a, List<String> b) {
+		if (a.length != b.length) {
+			return false;
+		}
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] != b[i]) {
+				return false;
+			}
+		}
+		return true;
 	}
 }
 

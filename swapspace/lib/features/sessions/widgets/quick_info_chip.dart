@@ -7,7 +7,7 @@ class QuickInfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const QuickInfoChip({required this.icon, required this.text});
+  const QuickInfoChip({super.key, required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {

@@ -8,7 +8,7 @@ import 'profile_stat_tile.dart';
 class ProfileStatsCard extends StatelessWidget {
   final UserModel user;
 
-  const ProfileStatsCard({required this.user});
+  const ProfileStatsCard({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {

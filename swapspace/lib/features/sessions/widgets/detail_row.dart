@@ -8,6 +8,7 @@ class DetailRow extends StatelessWidget {
   final String label;
   final String value;
   const DetailRow({
+    super.key,
     required this.icon,
     required this.label,
     required this.value,

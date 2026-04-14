@@ -1,25 +1,19 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/user_model.dart';
+import '../../../providers/auth_provider.dart';
 
 class UserProfileScreen extends StatelessWidget {
   final String userId;
 
   const UserProfileScreen({super.key, required this.userId});
 
-  Future<UserModel?> _loadPublicProfile() async {
+  Future<UserModel?> _loadPublicProfile(BuildContext context) async {
     if (userId.isEmpty) return null;
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('publicProfiles')
-        .doc(userId)
-        .get();
-
-    if (!snapshot.exists || snapshot.data() == null) return null;
-    return UserModel.fromMap(snapshot.data()!);
+    return context.read<AuthProvider>().getUserById(userId);
   }
 
   @override
@@ -30,7 +24,7 @@ class UserProfileScreen extends StatelessWidget {
         title: const Text('User Profile'),
       ),
       body: FutureBuilder<UserModel?>(
-        future: _loadPublicProfile(),
+        future: _loadPublicProfile(context),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

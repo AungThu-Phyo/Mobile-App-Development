@@ -6,13 +6,11 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
 import '../../../core/constants/session_constants.dart';
-import '../../../core/utils/app_logger.dart';
 import '../../../models/join_request_model.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/join_request_provider.dart';
-import '../../../providers/session_provider.dart';
 import '../widgets/request_review_card.dart';
 
 class RequestsScreen extends StatefulWidget {
@@ -202,6 +200,8 @@ class _IncomingTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<JoinRequestProvider>(
       builder: (context, provider, _) {
+        final uid = context.read<AuthProvider>().userId ?? '';
+
         if (provider.isLoading && provider.incomingRequests.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -219,10 +219,35 @@ class _IncomingTab extends StatelessWidget {
           onRefresh: () async => onRefresh(),
           child: ListView.builder(
             padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: provider.incomingRequests.length,
+            itemCount: provider.incomingRequests.length +
+                (provider.isLoadingMoreIncomingRequests ? 1 : 0),
             itemBuilder: (context, index) {
+              if (index >= provider.incomingRequests.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (uid.isNotEmpty &&
+                  provider.hasMoreIncomingRequests &&
+                  !provider.isLoadingMoreIncomingRequests &&
+                  index >= provider.incomingRequests.length - 2) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) {
+                    context.read<JoinRequestProvider>().loadMoreIncomingRequests(uid);
+                  }
+                });
+              }
+
               return _IncomingRequestCard(
                 request: provider.incomingRequests[index],
+                requester: provider.getCachedUser(
+                  provider.incomingRequests[index].requesterUid,
+                ),
+                session: provider.getCachedSession(
+                  provider.incomingRequests[index].sessionId,
+                ),
               );
             },
           ),
@@ -232,70 +257,36 @@ class _IncomingTab extends StatelessWidget {
   }
 }
 
-class _IncomingRequestCard extends StatefulWidget {
+class _IncomingRequestCard extends StatelessWidget {
   final JoinRequestModel request;
-  const _IncomingRequestCard({required this.request});
+  final UserModel? requester;
+  final SessionModel? session;
 
-  @override
-  State<_IncomingRequestCard> createState() => _IncomingRequestCardState();
-}
-
-class _IncomingRequestCardState extends State<_IncomingRequestCard> {
-  UserModel? _requester;
-  SessionModel? _session;
-  bool _loading = true;
-  bool _acting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDetails();
-  }
-
-  Future<void> _loadDetails() async {
-    try {
-      final results = await Future.wait([
-        context.read<AuthProvider>().getUserById(widget.request.requesterUid),
-        context.read<SessionProvider>().getSessionById(widget.request.sessionId),
-      ]);
-      _requester = results[0] as UserModel?;
-      _session = results[1] as SessionModel?;
-    } catch (e, stackTrace) {
-      AppLogger.error('RequestsScreen._IncomingRequestCard._loadDetails error', e, stackTrace);
-    }
-    if (mounted) setState(() => _loading = false);
-  }
+  const _IncomingRequestCard({
+    required this.request,
+    required this.requester,
+    required this.session,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Card(
-        margin: EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.cardPadding),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    final isLeaveRequest = widget.request.requestType == JoinRequestType.leave;
+    final isLeaveRequest = request.requestType == JoinRequestType.leave;
 
     return RequestReviewCard(
-      request: widget.request,
-      requester: _requester,
-      session: _session,
-      onRequesterTap: _requester == null
+      request: request,
+      requester: requester,
+      session: session,
+      onRequesterTap: requester == null
           ? null
           : () => context.push(
-                RouteNames.userProfileById(_requester!.uid),
+                RouteNames.userProfileById(requester!.uid),
               ),
-      isActing: _acting,
+      isActing: false,
       acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
       rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
       onAccept: () async {
-        setState(() => _acting = true);
         final provider = context.read<JoinRequestProvider>();
-        final success = await provider.acceptRequest(widget.request.requestId);
+        final success = await provider.acceptRequest(request.requestId);
         if (success && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -307,12 +298,10 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
             ),
           );
         }
-        if (mounted) setState(() => _acting = false);
       },
       onReject: () async {
-        setState(() => _acting = true);
         final provider = context.read<JoinRequestProvider>();
-        final success = await provider.rejectRequest(widget.request.requestId);
+        final success = await provider.rejectRequest(request.requestId);
         if (success && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -322,7 +311,6 @@ class _IncomingRequestCardState extends State<_IncomingRequestCard> {
             ),
           );
         }
-        if (mounted) setState(() => _acting = false);
       },
     );
   }
@@ -336,6 +324,8 @@ class _OutgoingTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<JoinRequestProvider>(
       builder: (context, provider, _) {
+        final uid = context.read<AuthProvider>().userId ?? '';
+
         if (provider.isLoading && provider.outgoingRequests.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -353,10 +343,39 @@ class _OutgoingTab extends StatelessWidget {
           onRefresh: () async => onRefresh(),
           child: ListView.builder(
             padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: provider.outgoingRequests.length,
+            itemCount: provider.outgoingRequests.length +
+                (provider.isLoadingMoreOutgoingRequests ? 1 : 0),
             itemBuilder: (context, index) {
+              if (index >= provider.outgoingRequests.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (uid.isNotEmpty &&
+                  provider.hasMoreOutgoingRequests &&
+                  !provider.isLoadingMoreOutgoingRequests &&
+                  index >= provider.outgoingRequests.length - 2) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) {
+                    context.read<JoinRequestProvider>().loadMoreOutgoingRequests(uid);
+                  }
+                });
+              }
+
               return _OutgoingRequestCard(
                 request: provider.outgoingRequests[index],
+                session: provider.getCachedSession(
+                  provider.outgoingRequests[index].sessionId,
+                ),
+                creator: (() {
+                  final session = provider.getCachedSession(
+                    provider.outgoingRequests[index].sessionId,
+                  );
+                  if (session == null) return null;
+                  return provider.getCachedUser(session.creatorUid);
+                })(),
               );
             },
           ),
@@ -366,54 +385,20 @@ class _OutgoingTab extends StatelessWidget {
   }
 }
 
-class _OutgoingRequestCard extends StatefulWidget {
+class _OutgoingRequestCard extends StatelessWidget {
   final JoinRequestModel request;
-  const _OutgoingRequestCard({required this.request});
+  final SessionModel? session;
+  final UserModel? creator;
 
-  @override
-  State<_OutgoingRequestCard> createState() => _OutgoingRequestCardState();
-}
-
-class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
-  SessionModel? _session;
-  UserModel? _creator;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDetails();
-  }
-
-  Future<void> _loadDetails() async {
-    try {
-      _session = await context.read<SessionProvider>().getSessionById(
-        widget.request.sessionId,
-      );
-      if (_session != null) {
-        _creator = await context.read<AuthProvider>().getUserById(
-          _session!.creatorUid,
-        );
-      }
-    } catch (e, stackTrace) {
-      AppLogger.error('RequestsScreen._OutgoingRequestCard._loadDetails error', e, stackTrace);
-    }
-    if (mounted) setState(() => _loading = false);
-  }
+  const _OutgoingRequestCard({
+    required this.request,
+    required this.session,
+    required this.creator,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Card(
-        margin: EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.cardPadding),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    final isPending = widget.request.status == 'pending';
+    final isPending = request.status == 'pending';
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -426,19 +411,19 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
               children: [
                 Expanded(
                   child: Text(
-                    _session?.title ?? 'Unknown Session',
+                    session?.title ?? 'Unknown Session',
                     style: AppTextStyles.headingSmall,
                   ),
                 ),
-                _RequestStatusBadge(status: widget.request.status),
+                _RequestStatusBadge(status: request.status),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             InkWell(
-              onTap: _creator == null
+              onTap: creator == null
                   ? null
                   : () => context.push(
-                        RouteNames.userProfileById(_creator!.uid),
+                        RouteNames.userProfileById(creator!.uid),
                       ),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               child: Padding(
@@ -452,13 +437,13 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
                       radius: 16,
                       backgroundColor: AppColors.primaryBlueLight,
                       backgroundImage:
-                          _creator != null && _creator!.avatarUrl.isNotEmpty
-                          ? NetworkImage(_creator!.avatarUrl)
+                          creator != null && creator!.avatarUrl.isNotEmpty
+                          ? NetworkImage(creator!.avatarUrl)
                           : null,
-                      child: _creator == null || _creator!.avatarUrl.isEmpty
+                        child: creator == null || creator!.avatarUrl.isEmpty
                           ? Text(
-                              _creator?.name.isNotEmpty == true
-                                  ? _creator!.name[0]
+                            creator?.name.isNotEmpty == true
+                              ? creator!.name[0]
                                   : '?',
                               style: TextStyle(
                                 fontSize: 11,
@@ -469,17 +454,17 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      'by ${_creator?.name ?? 'Unknown'}',
+                      'by ${creator?.name ?? 'Unknown'}',
                       style: AppTextStyles.caption,
                     ),
                   ],
                 ),
               ),
             ),
-            if (widget.request.message.isNotEmpty) ...[
+            if (request.message.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '"${widget.request.message}"',
+                '"${request.message}"',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                   fontStyle: FontStyle.italic,
@@ -497,7 +482,7 @@ class _OutgoingRequestCardState extends State<_OutgoingRequestCard> {
                   onPressed: () async {
                     final provider = context.read<JoinRequestProvider>();
                     final success = await provider.cancelJoinRequest(
-                      widget.request.requestId,
+                      request.requestId,
                     );
                     if (success && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

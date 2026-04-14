@@ -2,8 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/constants/session_constants.dart';
 import '../core/errors/repository_exception.dart';
 import '../models/join_request_model.dart';
+import 'paginated_query_result.dart';
 
 class JoinRequestRepository {
+  static const int defaultPageSize = 20;
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final CollectionReference<Map<String, dynamic>> _requestsRef =
       FirebaseFirestore.instance.collection('joinRequests');
@@ -112,6 +115,9 @@ class JoinRequestRepository {
   Stream<List<JoinRequestModel>> streamForCreator(String uid) {
     return _requestsRef
         .where('creatorUid', isEqualTo: uid)
+        .where('status', isEqualTo: JoinRequestStatus.pending)
+        .orderBy('createdAt', descending: true)
+        .limit(defaultPageSize)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -144,6 +150,7 @@ class JoinRequestRepository {
     final snapshot = await _requestsRef
         .where('sessionId', isEqualTo: sessionId)
         .where('status', isEqualTo: JoinRequestStatus.pending)
+      .orderBy('createdAt', descending: true)
         .get();
     return snapshot.docs
         .map((doc) => JoinRequestModel.fromMap(doc.data()))
@@ -155,6 +162,7 @@ class JoinRequestRepository {
     try {
       final snapshot = await _requestsRef
           .where('sessionId', isEqualTo: sessionId)
+          .orderBy('createdAt', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
@@ -179,6 +187,7 @@ class JoinRequestRepository {
     try {
       final snapshot = await _requestsRef
           .where('requesterUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
@@ -203,6 +212,7 @@ class JoinRequestRepository {
     try {
       final snapshot = await _requestsRef
           .where('creatorUid', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
           .get();
       return snapshot.docs
           .map((doc) => JoinRequestModel.fromMap(doc.data()))
@@ -217,6 +227,117 @@ class JoinRequestRepository {
       throw RepositoryException(
         code: 'unknown',
         message: 'Unable to load incoming requests',
+        cause: e,
+      );
+    }
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> getForCreatorPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getOrderedPage(
+      baseQuery: _requestsRef.where('creatorUid', isEqualTo: uid),
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated incoming requests',
+    );
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> getFromUserPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getOrderedPage(
+      baseQuery: _requestsRef.where('requesterUid', isEqualTo: uid),
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated outgoing requests',
+    );
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> getForSessionPage({
+    required String sessionId,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getOrderedPage(
+      baseQuery: _requestsRef.where('sessionId', isEqualTo: sessionId),
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated session requests',
+    );
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> getPendingForSessionPage({
+    required String sessionId,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getOrderedPage(
+      baseQuery: _requestsRef
+          .where('sessionId', isEqualTo: sessionId)
+          .where('status', isEqualTo: JoinRequestStatus.pending),
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated pending session requests',
+    );
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> getPendingForCreatorPage({
+    required String uid,
+    int pageSize = defaultPageSize,
+    QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+  }) async {
+    return _getOrderedPage(
+      baseQuery: _requestsRef
+          .where('creatorUid', isEqualTo: uid)
+          .where('status', isEqualTo: JoinRequestStatus.pending),
+      pageSize: pageSize,
+      startAfterDocument: startAfterDocument,
+      errorMessage: 'Unable to load paginated pending incoming requests',
+    );
+  }
+
+  Future<PaginatedQueryResult<JoinRequestModel>> _getOrderedPage({
+    required Query<Map<String, dynamic>> baseQuery,
+    required int pageSize,
+    required QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+    required String errorMessage,
+  }) async {
+    try {
+      var query = baseQuery
+          .orderBy('createdAt', descending: true)
+          .limit(pageSize + 1);
+
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+      }
+
+      final snapshot = await query.get();
+      final docs = snapshot.docs;
+      final hasMore = docs.length > pageSize;
+      final pageDocs = hasMore ? docs.take(pageSize).toList() : docs;
+
+      return PaginatedQueryResult<JoinRequestModel>(
+        items: pageDocs
+            .map((doc) => JoinRequestModel.fromMap(doc.data()))
+            .toList(),
+        lastDocument: pageDocs.isNotEmpty ? pageDocs.last : null,
+        hasMore: hasMore,
+      );
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: errorMessage,
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: errorMessage,
         cause: e,
       );
     }

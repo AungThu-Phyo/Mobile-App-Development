@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 class AuthProvider extends BaseStateProvider {
   final AuthService _authService;
   late StreamSubscription<String?> _authSubscription;
+  final Map<String, UserModel> _publicUserCache = {};
 
   String? _userId;
   UserModel? _currentUser;
@@ -60,6 +61,7 @@ class AuthProvider extends BaseStateProvider {
   }
 
   Future<void> signOut() async {
+    _publicUserCache.clear();
     await _authService.signOut();
   }
 
@@ -85,7 +87,52 @@ class AuthProvider extends BaseStateProvider {
   }
 
   Future<UserModel?> getUserById(String uid) {
-    return _authService.getUserById(uid);
+    final normalizedUid = uid.trim();
+    if (normalizedUid.isEmpty) {
+      return Future.value(null);
+    }
+
+    final cached = _publicUserCache[normalizedUid];
+    if (cached != null) {
+      return Future.value(cached);
+    }
+
+    return _authService.getUserById(normalizedUid).then((user) {
+      if (user != null && user.uid.isNotEmpty) {
+        _publicUserCache[user.uid] = user;
+      }
+      return user;
+    });
+  }
+
+  Future<Map<String, UserModel>> getUsersByIds(List<String> uids) {
+    final normalized =
+        uids.where((uid) => uid.trim().isNotEmpty).toSet().toList();
+    if (normalized.isEmpty) {
+      return Future.value({});
+    }
+
+    final result = <String, UserModel>{};
+    final missing = <String>[];
+
+    for (final uid in normalized) {
+      final cached = _publicUserCache[uid];
+      if (cached != null) {
+        result[uid] = cached;
+      } else {
+        missing.add(uid);
+      }
+    }
+
+    if (missing.isEmpty) {
+      return Future.value(result);
+    }
+
+    return _authService.getUsersByIds(missing).then((loaded) {
+      _publicUserCache.addAll(loaded);
+      result.addAll(loaded);
+      return result;
+    });
   }
 
   Future<void> refreshCurrentUser() async {

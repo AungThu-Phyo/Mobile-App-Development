@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../core/constants/session_constants.dart';
 import '../core/utils/app_logger.dart';
 import '../models/session_model.dart';
 import '../repositories/join_request_repository.dart';
+import '../repositories/paginated_query_result.dart';
 import '../repositories/session_repository.dart';
 import 'notification_service.dart';
 
@@ -14,6 +17,42 @@ class SessionMutationResult {
 		required this.sessions,
 		required this.mySessions,
 		required this.selectedSession,
+	});
+}
+
+class SessionPageResult {
+	final List<SessionModel> items;
+	final QueryDocumentSnapshot<Map<String, dynamic>>? lastDocument;
+	final bool hasMore;
+
+	const SessionPageResult({
+		required this.items,
+		required this.lastDocument,
+		required this.hasMore,
+	});
+}
+
+class JoinedSessionsCursorState {
+	final QueryDocumentSnapshot<Map<String, dynamic>>? partnerCursor;
+	final QueryDocumentSnapshot<Map<String, dynamic>>? participantCursor;
+	final bool hasMorePartner;
+	final bool hasMoreParticipant;
+
+	const JoinedSessionsCursorState({
+		required this.partnerCursor,
+		required this.participantCursor,
+		required this.hasMorePartner,
+		required this.hasMoreParticipant,
+	});
+}
+
+class JoinedSessionsPageResult {
+	final List<SessionModel> items;
+	final JoinedSessionsCursorState cursorState;
+
+	const JoinedSessionsPageResult({
+		required this.items,
+		required this.cursorState,
 	});
 }
 
@@ -64,13 +103,115 @@ class SessionService {
 	}
 
 	Future<List<SessionModel>> loadOpenSessions() async {
-		// Home feed only shows public open sessions that the current user can read.
-		final openSessions = await _repo.getSessionsByStatus(SessionStatus.open);
+		final firstPage = await loadOpenSessionsPage();
+		return firstPage.items;
+	}
 
-		return openSessions
-			.where((s) => s.isActive == true)
-			.toList()
+	Future<SessionPageResult> loadOpenSessionsPage({
+		int pageSize = SessionRepository.defaultPageSize,
+		QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+	}) async {
+		final PaginatedQueryResult<SessionModel> page =
+				await _repo.getSessionsByStatusPage(
+					status: SessionStatus.open,
+					pageSize: pageSize,
+					startAfterDocument: startAfterDocument,
+				);
+
+		return SessionPageResult(
+			items: page.items,
+			lastDocument: page.lastDocument,
+			hasMore: page.hasMore,
+		);
+	}
+
+	Future<SessionPageResult> loadCreatedSessionsPage({
+		required String uid,
+		int pageSize = SessionRepository.defaultPageSize,
+		QueryDocumentSnapshot<Map<String, dynamic>>? startAfterDocument,
+	}) async {
+		final PaginatedQueryResult<SessionModel> page =
+				await _repo.getSessionsByCreatorPage(
+					uid: uid,
+					pageSize: pageSize,
+					startAfterDocument: startAfterDocument,
+				);
+
+		return SessionPageResult(
+			items: page.items,
+			lastDocument: page.lastDocument,
+			hasMore: page.hasMore,
+		);
+	}
+
+	Future<JoinedSessionsPageResult> loadJoinedSessionsPage({
+		required String uid,
+		int pageSize = SessionRepository.defaultPageSize,
+		JoinedSessionsCursorState? cursorState,
+	}) async {
+		final currentState =
+				cursorState ??
+				const JoinedSessionsCursorState(
+					partnerCursor: null,
+					participantCursor: null,
+					hasMorePartner: true,
+					hasMoreParticipant: true,
+				);
+
+		final sourcePageSize = (pageSize / 2).ceil();
+
+		PaginatedQueryResult<SessionModel> partnerPage =
+				const PaginatedQueryResult<SessionModel>(
+					items: [],
+					lastDocument: null,
+					hasMore: false,
+				);
+		PaginatedQueryResult<SessionModel> participantPage =
+				const PaginatedQueryResult<SessionModel>(
+					items: [],
+					lastDocument: null,
+					hasMore: false,
+				);
+
+		if (currentState.hasMorePartner) {
+			partnerPage = await _repo.getSessionsByPartnerPage(
+				uid: uid,
+				pageSize: sourcePageSize,
+				startAfterDocument: currentState.partnerCursor,
+			);
+		}
+
+		if (currentState.hasMoreParticipant) {
+			participantPage = await _repo.getSessionsByParticipantPage(
+				uid: uid,
+				pageSize: sourcePageSize,
+				startAfterDocument: currentState.participantCursor,
+			);
+		}
+
+		final merged = <String, SessionModel>{};
+		for (final session in [...partnerPage.items, ...participantPage.items]) {
+			if (session.creatorUid == uid) {
+				continue;
+			}
+			merged[session.sessionId] = session;
+		}
+
+		final items = merged.values.toList()
 			..sort((a, b) => b.date.compareTo(a.date));
+
+		return JoinedSessionsPageResult(
+			items: items.take(pageSize).toList(),
+			cursorState: JoinedSessionsCursorState(
+				partnerCursor: partnerPage.lastDocument ?? currentState.partnerCursor,
+				participantCursor:
+						participantPage.lastDocument ?? currentState.participantCursor,
+				hasMorePartner:
+						currentState.hasMorePartner ? partnerPage.hasMore : false,
+				hasMoreParticipant:
+						currentState.hasMoreParticipant ? participantPage.hasMore : false,
+			),
+		);
 	}
 
 	Future<List<SessionModel>> loadMySessions(String uid) async {

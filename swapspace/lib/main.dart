@@ -3,6 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
@@ -41,6 +45,10 @@ void main() async {
     rethrow;
   }
 
+  await _configureFirestorePersistence();
+
+  await _initializeFirebaseMonitoring();
+
   await _activateAppCheck();
 
   final userRepository = UserRepository();
@@ -75,6 +83,7 @@ void main() async {
   final joinRequestService = JoinRequestService(
     requestRepository: joinRequestRepository,
     sessionRepository: sessionRepository,
+    userRepository: userRepository,
     notificationService: notificationService,
   );
 
@@ -172,5 +181,86 @@ Future<void> _activateAppCheck() async {
     );
   } catch (e) {
     debugPrint('Firebase App Check activation skipped: $e');
+  }
+}
+
+Future<void> _initializeFirebaseMonitoring() async {
+  try {
+    await FirebaseAnalytics.instance.logAppOpen();
+    debugPrint('✅ Firebase Analytics initialized');
+  } catch (e) {
+    debugPrint('⚠️ Firebase Analytics initialization skipped: $e');
+  }
+
+  if (kIsWeb) {
+    FlutterError.onError = FlutterError.presentError;
+    return;
+  }
+
+  try {
+    await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
+    debugPrint('✅ Firebase Performance Monitoring enabled');
+  } catch (e) {
+    debugPrint('⚠️ Firebase Performance Monitoring initialization skipped: $e');
+  }
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+}
+
+Future<void> _configureFirestorePersistence() async {
+  final firestore = FirebaseFirestore.instance;
+
+  if (kIsWeb) {
+    try {
+      firestore.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      debugPrint('✅ Firestore web persistence enabled');
+      return;
+    } on FirebaseException catch (e) {
+      // unimplemented can occur in older/unsupported browser environments.
+      if (e.code == 'unimplemented') {
+        debugPrint(
+          '⚠️ Firestore web persistence unsupported in this browser/runtime: ${e.code}',
+        );
+        return;
+      }
+
+      debugPrint('⚠️ Firestore web persistence skipped: ${e.code} ${e.message}');
+      return;
+    } catch (e) {
+      debugPrint('⚠️ Firestore web persistence skipped: $e');
+      return;
+    }
+  }
+
+  final isMobile =
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  if (!isMobile) {
+    debugPrint('ℹ️ Firestore offline persistence not configured for this platform');
+    return;
+  }
+
+  try {
+    firestore.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    debugPrint('✅ Firestore mobile persistence enabled (unlimited cache)');
+  } on FirebaseException catch (e) {
+    debugPrint('⚠️ Firestore mobile persistence skipped: ${e.code} ${e.message}');
+  } catch (e) {
+    debugPrint('⚠️ Firestore mobile persistence skipped: $e');
   }
 }

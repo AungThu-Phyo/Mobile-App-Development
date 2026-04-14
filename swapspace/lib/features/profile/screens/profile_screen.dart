@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/route_names.dart';
-import '../../../models/user_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/session_provider.dart';
 import '../../../providers/theme_provider.dart';
-import '../widgets/profile_header.dart';
 import '../widgets/profile_appearance_card.dart';
 import '../widgets/profile_hero.dart';
 import '../widgets/profile_stats_card.dart';
@@ -46,7 +42,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_loadedUid == uid) return;
 
     try {
-      await context.read<SessionProvider>().loadMySessions(uid);
+      final sessionProvider = context.read<SessionProvider>();
+      await Future.wait([
+        sessionProvider.loadCreatedSessions(uid),
+        sessionProvider.loadJoinedSessions(uid),
+      ]);
       if (!mounted) return;
       _loadedUid = uid;
     } catch (_) {

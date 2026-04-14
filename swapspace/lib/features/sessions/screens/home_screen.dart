@@ -228,8 +228,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 return RefreshIndicator(
                   onRefresh: () => provider.loadOpenSessions(),
                   child: ListView.builder(
-                    itemCount: sessions.length,
+                    itemCount:
+                        sessions.length + (provider.isLoadingMoreOpenSessions ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (index >= sessions.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
+                      if (provider.hasMoreOpenSessions &&
+                          !provider.isLoadingMoreOpenSessions &&
+                          index >= sessions.length - 3) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (context.mounted) {
+                            context.read<SessionProvider>().loadMoreOpenSessions();
+                          }
+                        });
+                      }
+
                       final session = sessions[index];
                       final isOwner = session.creatorUid == currentUid;
                       return Padding(

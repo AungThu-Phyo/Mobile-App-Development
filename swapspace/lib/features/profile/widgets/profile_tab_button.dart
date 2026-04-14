@@ -9,6 +9,7 @@ class ProfileTabButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const ProfileTabButton({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,

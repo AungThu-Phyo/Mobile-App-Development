@@ -215,7 +215,9 @@ class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
                     case 3:
                       final uid = context.read<AuthProvider>().userId ?? '';
                       if (uid.isNotEmpty) {
-                        context.read<SessionProvider>().loadMySessions(uid);
+                        final sessionProvider = context.read<SessionProvider>();
+                        sessionProvider.loadCreatedSessions(uid, refresh: false);
+                        sessionProvider.loadJoinedSessions(uid, refresh: false);
                       }
                       context.go(RouteNames.profile);
                   }

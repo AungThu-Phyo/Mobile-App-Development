@@ -3,6 +3,8 @@ import '../core/errors/repository_exception.dart';
 import '../models/user_model.dart';
 
 class UserRepository {
+  static const int _whereInBatchSize = 10;
+
   final CollectionReference<Map<String, dynamic>> _usersRef =
       FirebaseFirestore.instance.collection('users');
 
@@ -96,6 +98,42 @@ class UserRepository {
     }
   }
 
+  /// Fetches multiple public profiles in batched whereIn queries.
+  Future<Map<String, UserModel>> getPublicUsersByIds(List<String> uids) async {
+    try {
+      final normalizedIds = uids.where((uid) => uid.trim().isNotEmpty).toSet().toList();
+      if (normalizedIds.isEmpty) return {};
+
+      final result = <String, UserModel>{};
+      for (final batch in _chunks(normalizedIds, _whereInBatchSize)) {
+        final snapshot = await _publicProfilesRef
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final user = UserModel.fromMap(data);
+          final key = user.uid.isNotEmpty ? user.uid : doc.id;
+          result[key] = user.uid.isNotEmpty ? user : user.copyWith(uid: doc.id);
+        }
+      }
+
+      return result;
+    } on FirebaseException catch (e) {
+      throw RepositoryException(
+        code: e.code,
+        message: 'Unable to load public profiles',
+        cause: e,
+      );
+    } catch (e) {
+      throw RepositoryException(
+        code: 'unknown',
+        message: 'Unable to load public profiles',
+        cause: e,
+      );
+    }
+  }
+
   /// Updates an existing user document (merge).
   Future<void> updateUser(UserModel user) async {
     try {
@@ -176,5 +214,14 @@ class UserRepository {
         cause: e,
       );
     }
+  }
+
+  List<List<String>> _chunks(List<String> values, int size) {
+    final chunks = <List<String>>[];
+    for (var i = 0; i < values.length; i += size) {
+      final end = (i + size < values.length) ? i + size : values.length;
+      chunks.add(values.sublist(i, end));
+    }
+    return chunks;
   }
 }

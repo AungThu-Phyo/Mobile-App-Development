@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build_and_deploy:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,8 +16,17 @@ jobs:
         with:
           flutter-version: '3.41.1'
           channel: 'stable'
+          cache: true
 
       - run: flutter pub get
+        working-directory: swapspace
+
+      - name: Static analysis
+        run: flutter analyze
+        working-directory: swapspace
+
+      - name: Run tests
+        run: flutter test
         working-directory: swapspace
 
       # Create .env file for web runtime config
@@ -63,6 +72,27 @@ jobs:
         run: |
           cp build/web/assets/.env build/web/.env
           [ -f build/web/.env ] || (echo "❌ failed to create root .env compatibility file" && exit 1)
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-live
+          path: swapspace/build/web
+          if-no-files-found: error
+
+  deploy_live:
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build-live
+          path: swapspace/build/web
 
       # Deploy to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0

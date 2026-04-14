@@ -11,7 +11,7 @@ import '../../../providers/privacy_provider.dart';
 class ProfilePrivacyCard extends StatefulWidget {
   final AuthProvider authProvider;
 
-  const ProfilePrivacyCard({required this.authProvider});
+  const ProfilePrivacyCard({super.key, required this.authProvider});
 
   @override
   State<ProfilePrivacyCard> createState() => _ProfilePrivacyCardState();
@@ -23,7 +23,7 @@ class _ProfilePrivacyCardState extends State<ProfilePrivacyCard> {
     if (uid.isEmpty) return;
     final provider = context.read<PrivacyProvider>();
     final payload = await provider.exportMyData(uid);
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     if (payload == null || payload.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,7 +74,7 @@ class _ProfilePrivacyCardState extends State<ProfilePrivacyCard> {
         ) ??
         false;
 
-    if (!shouldDelete || !context.mounted) return;
+    if (!shouldDelete || !mounted) return;
 
     final uid = widget.authProvider.userId ?? '';
     if (uid.isEmpty) return;
@@ -83,7 +83,7 @@ class _ProfilePrivacyCardState extends State<ProfilePrivacyCard> {
     _showDeleteProgress();
     final ok = await provider.deleteMyAccount(uid);
     _hideDeleteProgress();
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(

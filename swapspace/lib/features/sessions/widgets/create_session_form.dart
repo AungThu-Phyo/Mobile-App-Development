@@ -83,7 +83,7 @@ class CreateSessionForm extends StatelessWidget {
         const Text('Activity Category', style: AppTextStyles.labelLarge),
         const SizedBox(height: AppSpacing.sm),
         DropdownButtonFormField<String>(
-          value: selectedCategory,
+          initialValue: selectedCategory,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.surface,

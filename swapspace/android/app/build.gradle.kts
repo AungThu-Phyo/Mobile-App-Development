@@ -27,9 +27,20 @@ val hasReleaseSigning =
         !keystoreProperties.getProperty("keyAlias").isNullOrBlank() &&
         !keystoreProperties.getProperty("keyPassword").isNullOrBlank()
 
+val isReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("Release", ignoreCase = true) ||
+        taskName.contains("bundle", ignoreCase = true)
+}
+
+if (isReleaseTaskRequested && !hasReleaseSigning) {
+    throw GradleException(
+        "Release signing is not configured. Create android/key.properties and set storeFile/storePassword/keyAlias/keyPassword.",
+    )
+}
+
 android {
-    namespace = "com.example.swapspace"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.aungthuphyo.swapspace"
+    compileSdk = maxOf(flutter.compileSdkVersion, 35)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -42,12 +53,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.swapspace"
+        applicationId = "com.aungthuphyo.swapspace"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = maxOf(flutter.targetSdkVersion, 35)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -67,7 +77,10 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
 
             // When key.properties exists, use secure release signing.
             // If not, this build remains unsigned instead of using debug keys.

@@ -11,6 +11,7 @@ class ProfileSessionRow extends StatelessWidget {
   final bool isCreator;
 
   const ProfileSessionRow({
+    super.key,
     required this.session,
     required this.isCreator,
   });

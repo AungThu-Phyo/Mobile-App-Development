@@ -10,6 +10,7 @@ class ProfileStatTile extends StatelessWidget {
   final IconData icon;
 
   const ProfileStatTile({
+    super.key,
     required this.label,
     required this.value,
     required this.accent,
