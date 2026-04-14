@@ -21,14 +21,6 @@ jobs:
       - run: flutter pub get
         working-directory: swapspace
 
-      - name: Static analysis
-        run: flutter analyze
-        working-directory: swapspace
-
-      - name: Run tests
-        run: flutter test
-        working-directory: swapspace
-
       # Create .env file for web runtime config
       - name: Create .env file
         working-directory: swapspace
@@ -53,6 +45,14 @@ jobs:
           grep -Eq '^FIREBASE_WEB_MESSAGING_SENDER_ID=.+$' .env  || (echo "Missing/empty FIREBASE_WEB_MESSAGING_SENDER_ID" && exit 1)
           grep -Eq '^FIREBASE_WEB_PROJECT_ID=.+$' .env           || (echo "Missing/empty FIREBASE_WEB_PROJECT_ID" && exit 1)
           echo "✅ All required web keys are non-empty"
+
+      - name: Static analysis
+        run: flutter analyze
+        working-directory: swapspace
+
+      - name: Run tests
+        run: flutter test
+        working-directory: swapspace
 
       # Build web
       - run: flutter build web --pwa-strategy=none --profile
