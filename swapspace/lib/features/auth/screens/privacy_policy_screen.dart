@@ -8,10 +8,10 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sections = <_PolicySection>[
+    const sections = <_PolicySection>[
       _PolicySection(
         title: 'What data we collect',
-        bullets: const [
+        bullets: [
           'Account data: name, email, and profile photo from Google Sign-In.',
           'Profile data: faculty, bio, activity preferences, and interaction preference.',
           'App data: sessions, join requests, feedback, and notification records.',
@@ -19,7 +19,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
       _PolicySection(
         title: 'Why we collect it',
-        bullets: const [
+        bullets: [
           'To create your account and verify your identity.',
           'To match you with other students for sessions.',
           'To manage requests, feedback, and notifications.',
@@ -27,7 +27,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
       _PolicySection(
         title: 'Third-party services',
-        bullets: const [
+        bullets: [
           'Firebase Authentication for login.',
           'Cloud Firestore for storing app data.',
           'Google Sign-In / Google Identity Services for authentication.',
@@ -35,7 +35,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
       _PolicySection(
         title: 'Your control',
-        bullets: const [
+        bullets: [
           'You can decline consent and stop using the app.',
           'You can export your account data from Profile > Privacy Controls.',
           'You can request permanent account deletion from Profile > Privacy Controls.',
@@ -45,7 +45,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
       _PolicySection(
         title: 'Data retention',
-        bullets: const [
+        bullets: [
           'Account and activity data are kept while your account remains active.',
           'Deleted accounts are removed from client-accessible records after a deletion request is completed.',
         ],

@@ -5,11 +5,14 @@ import '../models/user_model.dart';
 class UserRepository {
   static const int _whereInBatchSize = 10;
 
-  final CollectionReference<Map<String, dynamic>> _usersRef =
-      FirebaseFirestore.instance.collection('users');
+  final CollectionReference<Map<String, dynamic>> _usersRef;
+  final CollectionReference<Map<String, dynamic>> _publicProfilesRef;
 
-  final CollectionReference<Map<String, dynamic>> _publicProfilesRef =
-      FirebaseFirestore.instance.collection('publicProfiles');
+  UserRepository({FirebaseFirestore? firestore})
+    : _usersRef = (firestore ?? FirebaseFirestore.instance)
+      .collection('users'),
+    _publicProfilesRef = (firestore ?? FirebaseFirestore.instance)
+      .collection('publicProfiles');
 
   /// Creates a new user document — only if it does not already exist.
   Future<void> createUser(UserModel user) async {

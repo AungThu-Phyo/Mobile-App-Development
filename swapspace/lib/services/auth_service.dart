@@ -10,13 +10,15 @@ class AuthService {
 
 	final UserRepository _userRepo;
 	final FeedbackRepository _feedbackRepo;
-	final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+	final FirebaseAuth _firebaseAuth;
 
 	AuthService({
 		required UserRepository userRepository,
 		required FeedbackRepository feedbackRepository,
+		FirebaseAuth? firebaseAuth,
 	})  : _userRepo = userRepository,
-			_feedbackRepo = feedbackRepository;
+			_feedbackRepo = feedbackRepository,
+			_firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
 	Stream<String?> authStateStream() {
 		return _firebaseAuth.authStateChanges().map((user) => user?.uid);

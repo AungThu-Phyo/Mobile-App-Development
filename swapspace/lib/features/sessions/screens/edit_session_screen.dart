@@ -100,7 +100,7 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot edit session less than 1 hour before start'),
+            content: const Text('Cannot edit session less than 1 hour before start'),
             backgroundColor: AppColors.errorRed,
           ),
         );

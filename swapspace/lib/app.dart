@@ -79,7 +79,7 @@ class _ResponsiveAppFrame extends StatelessWidget {
                                 ? const Color(0x33000000)
                                 : const Color(0x17000000),
                             blurRadius: 32,
-                            offset: Offset(0, 20),
+                            offset: const Offset(0, 20),
                           ),
                         ],
                       ),

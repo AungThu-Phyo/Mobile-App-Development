@@ -688,7 +688,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Request to Join',
                               style: AppTextStyles.headingSmall,
                             ),

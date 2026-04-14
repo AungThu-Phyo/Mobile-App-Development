@@ -80,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppColors.errorRed,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text(
+                const Text(
                   'Unable to load profile',
                   style: AppTextStyles.headingSmall,
                 ),

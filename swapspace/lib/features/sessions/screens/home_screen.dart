@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
-                        Text(
+                        const Text(
                           'Be the first to create an activity!',
                           style: AppTextStyles.caption,
                         ),
@@ -295,8 +295,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppSpacing.radiusXl),
         ),
       ),

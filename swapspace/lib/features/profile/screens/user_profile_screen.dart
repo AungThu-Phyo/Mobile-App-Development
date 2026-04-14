@@ -31,9 +31,9 @@ class UserProfileScreen extends StatelessWidget {
           }
 
           if (snapshot.hasError) {
-            return Center(
+            return const Center(
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: EdgeInsets.all(AppSpacing.lg),
                 child: Text(
                   'Could not load this profile right now.',
                   style: AppTextStyles.bodyMedium,
@@ -45,9 +45,9 @@ class UserProfileScreen extends StatelessWidget {
 
           final user = snapshot.data;
           if (user == null || user.uid.isEmpty) {
-            return Center(
+            return const Center(
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: EdgeInsets.all(AppSpacing.lg),
                 child: Text(
                   'This profile is unavailable.',
                   style: AppTextStyles.bodyMedium,
@@ -142,7 +142,7 @@ class UserProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('About', style: AppTextStyles.labelLarge),
+                        const Text('About', style: AppTextStyles.labelLarge),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           user.bio.isNotEmpty
@@ -153,7 +153,7 @@ class UserProfileScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        Text('Stats', style: AppTextStyles.labelLarge),
+                        const Text('Stats', style: AppTextStyles.labelLarge),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           '${user.totalSessions} completed sessions',
@@ -163,7 +163,7 @@ class UserProfileScreen extends StatelessWidget {
                         ),
                         if (user.activityPreferences.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.md),
-                          Text('Preferences', style: AppTextStyles.labelLarge),
+                          const Text('Preferences', style: AppTextStyles.labelLarge),
                           const SizedBox(height: AppSpacing.xs),
                           Wrap(
                             spacing: AppSpacing.xs,

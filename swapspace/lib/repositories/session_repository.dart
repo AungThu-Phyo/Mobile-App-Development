@@ -7,8 +7,11 @@ class SessionRepository {
   static const int defaultPageSize = 20;
   static const int _whereInBatchSize = 10;
 
-  final CollectionReference<Map<String, dynamic>> _sessionsRef =
-      FirebaseFirestore.instance.collection('sessions');
+  final CollectionReference<Map<String, dynamic>> _sessionsRef;
+
+  SessionRepository({FirebaseFirestore? firestore})
+      : _sessionsRef = (firestore ?? FirebaseFirestore.instance)
+            .collection('sessions');
 
   Query<Map<String, dynamic>> _visibleSessionsQuery() {
     return _sessionsRef

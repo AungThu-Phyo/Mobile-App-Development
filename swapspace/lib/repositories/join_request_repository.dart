@@ -7,9 +7,13 @@ import 'paginated_query_result.dart';
 class JoinRequestRepository {
   static const int defaultPageSize = 20;
 
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final CollectionReference<Map<String, dynamic>> _requestsRef =
-      FirebaseFirestore.instance.collection('joinRequests');
+  final FirebaseFirestore _db;
+  final CollectionReference<Map<String, dynamic>> _requestsRef;
+
+  JoinRequestRepository({FirebaseFirestore? firestore})
+      : _db = firestore ?? FirebaseFirestore.instance,
+        _requestsRef = (firestore ?? FirebaseFirestore.instance)
+            .collection('joinRequests');
 
   Future<T> runTransaction<T>(
     Future<T> Function(Transaction tx) handler,

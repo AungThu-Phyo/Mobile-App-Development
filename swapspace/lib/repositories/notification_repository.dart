@@ -6,8 +6,11 @@ import 'paginated_query_result.dart';
 class NotificationRepository {
   static const int defaultPageSize = 20;
 
-  final CollectionReference<Map<String, dynamic>> _ref =
-      FirebaseFirestore.instance.collection('notifications');
+  final CollectionReference<Map<String, dynamic>> _ref;
+
+  NotificationRepository({FirebaseFirestore? firestore})
+      : _ref = (firestore ?? FirebaseFirestore.instance)
+            .collection('notifications');
 
   String createNotificationId() {
     return _ref.doc().id;

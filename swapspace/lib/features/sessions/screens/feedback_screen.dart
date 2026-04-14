@@ -188,7 +188,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Wrap up the session',
                           style: AppTextStyles.headingMedium,
                         ),
@@ -270,7 +270,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Text('Rate your partners', style: AppTextStyles.headingSmall),
+                  const Text('Rate your partners', style: AppTextStyles.headingSmall),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Every rating improves trust for future matches.',
