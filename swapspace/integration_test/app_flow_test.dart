@@ -33,7 +33,7 @@ void main() {
     registerFallbackValue(SessionModel.empty());
   });
 
-  Future<void> _pumpUntilFound(
+  Future<void> pumpUntilFound(
     WidgetTester tester,
     Finder finder, {
     Duration timeout = const Duration(seconds: 10),
@@ -173,7 +173,7 @@ void main() {
     expect(find.text('Create Session'), findsOneWidget);
 
     final textFields = find.byType(TextFormField);
-    await _pumpUntilFound(tester, textFields);
+    await pumpUntilFound(tester, textFields);
 
     await tester.enterText(textFields.at(0), 'Study Session');
     await tester.enterText(textFields.at(2), 'Library');
