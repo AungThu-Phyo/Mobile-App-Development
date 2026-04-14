@@ -62,7 +62,7 @@ jobs:
 
       # Build web
       - name: Build Flutter Web
-        run: flutter build web --pwa-strategy=none
+        run: flutter build web --pwa-strategy=none --dart-define-from-file=.env
         working-directory: swapspace
 
       # Verify .env was bundled into build output
@@ -85,6 +85,7 @@ jobs:
         with:
           name: web-build-pr
           path: swapspace/build/web
+          include-hidden-files: true
           if-no-files-found: error
 
   deploy_preview:

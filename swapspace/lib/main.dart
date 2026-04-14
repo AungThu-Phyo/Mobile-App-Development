@@ -160,9 +160,29 @@ Future<void> _loadEnvironmentVariables() async {
   if (lastStack != null) {
     debugPrint(lastStack.toString());
   }
+
+  if (kIsWeb && _hasRequiredWebDartDefines()) {
+    debugPrint(
+      '⚠️ Proceeding without runtime .env because required Firebase web values were found in Dart defines.',
+    );
+    return;
+  }
+
   throw StateError(
-    'Unable to load a valid .env file. Ensure /assets/.env exists in deployed web assets and contains FIREBASE_WEB_API_KEY.',
+    'Unable to load a valid .env file. Ensure /assets/.env exists in deployed web assets and contains FIREBASE_WEB_API_KEY, or provide Firebase values via --dart-define/--dart-define-from-file.',
   );
+}
+
+bool _hasRequiredWebDartDefines() {
+  const apiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+  const appId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+  const senderId = String.fromEnvironment('FIREBASE_WEB_MESSAGING_SENDER_ID');
+  const projectId = String.fromEnvironment('FIREBASE_WEB_PROJECT_ID');
+
+  return apiKey.isNotEmpty &&
+      appId.isNotEmpty &&
+      senderId.isNotEmpty &&
+      projectId.isNotEmpty;
 }
 
 Future<void> _activateAppCheck() async {

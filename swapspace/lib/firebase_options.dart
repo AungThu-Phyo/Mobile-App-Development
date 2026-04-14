@@ -88,11 +88,11 @@ class DefaultFirebaseOptions {
   );
 
   static String _required(String key) {
-    final value = dotenv.env[key]?.trim();
+    final value = _resolveValue(key);
     final isPlaceholder = value != null && value.startsWith('your-');
     if (value == null || value.isEmpty || isPlaceholder) {
       throw StateError(
-        'Missing or placeholder value for $key. Create swapspace/.env from .env.example and set real Firebase values.',
+        'Missing or placeholder value for $key. Create swapspace/.env from .env.example, or pass values with --dart-define/--dart-define-from-file.',
       );
     }
 
@@ -100,11 +100,94 @@ class DefaultFirebaseOptions {
   }
 
   static String? _optional(String key) {
-    final value = dotenv.env[key]?.trim();
+    final value = _resolveValue(key);
     if (value == null || value.isEmpty) {
       return null;
     }
 
     return value;
+  }
+
+  static String? _resolveValue(String key) {
+    final dotenvValue = dotenv.env[key]?.trim();
+    if (dotenvValue != null && dotenvValue.isNotEmpty) {
+      return dotenvValue;
+    }
+
+    final dartDefineValue = _valueFromDartDefine(key)?.trim();
+    if (dartDefineValue != null && dartDefineValue.isNotEmpty) {
+      return dartDefineValue;
+    }
+
+    return null;
+  }
+
+  static String? _valueFromDartDefine(String key) {
+    switch (key) {
+      case 'FIREBASE_WEB_API_KEY':
+        return const String.fromEnvironment('FIREBASE_WEB_API_KEY');
+      case 'FIREBASE_WEB_APP_ID':
+        return const String.fromEnvironment('FIREBASE_WEB_APP_ID');
+      case 'FIREBASE_WEB_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment('FIREBASE_WEB_MESSAGING_SENDER_ID');
+      case 'FIREBASE_WEB_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_WEB_PROJECT_ID');
+      case 'FIREBASE_WEB_AUTH_DOMAIN':
+        return const String.fromEnvironment('FIREBASE_WEB_AUTH_DOMAIN');
+      case 'FIREBASE_WEB_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_WEB_STORAGE_BUCKET');
+      case 'FIREBASE_WEB_MEASUREMENT_ID':
+        return const String.fromEnvironment('FIREBASE_WEB_MEASUREMENT_ID');
+      case 'FIREBASE_ANDROID_API_KEY':
+        return const String.fromEnvironment('FIREBASE_ANDROID_API_KEY');
+      case 'FIREBASE_ANDROID_APP_ID':
+        return const String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
+      case 'FIREBASE_ANDROID_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment('FIREBASE_ANDROID_MESSAGING_SENDER_ID');
+      case 'FIREBASE_ANDROID_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_ANDROID_PROJECT_ID');
+      case 'FIREBASE_ANDROID_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_ANDROID_STORAGE_BUCKET');
+      case 'FIREBASE_IOS_API_KEY':
+        return const String.fromEnvironment('FIREBASE_IOS_API_KEY');
+      case 'FIREBASE_IOS_APP_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_APP_ID');
+      case 'FIREBASE_IOS_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_MESSAGING_SENDER_ID');
+      case 'FIREBASE_IOS_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_PROJECT_ID');
+      case 'FIREBASE_IOS_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_IOS_STORAGE_BUCKET');
+      case 'FIREBASE_IOS_BUNDLE_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
+      case 'FIREBASE_MACOS_API_KEY':
+        return const String.fromEnvironment('FIREBASE_MACOS_API_KEY');
+      case 'FIREBASE_MACOS_APP_ID':
+        return const String.fromEnvironment('FIREBASE_MACOS_APP_ID');
+      case 'FIREBASE_MACOS_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment('FIREBASE_MACOS_MESSAGING_SENDER_ID');
+      case 'FIREBASE_MACOS_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_MACOS_PROJECT_ID');
+      case 'FIREBASE_MACOS_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_MACOS_STORAGE_BUCKET');
+      case 'FIREBASE_MACOS_BUNDLE_ID':
+        return const String.fromEnvironment('FIREBASE_MACOS_BUNDLE_ID');
+      case 'FIREBASE_WINDOWS_API_KEY':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_API_KEY');
+      case 'FIREBASE_WINDOWS_APP_ID':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_APP_ID');
+      case 'FIREBASE_WINDOWS_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_MESSAGING_SENDER_ID');
+      case 'FIREBASE_WINDOWS_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_PROJECT_ID');
+      case 'FIREBASE_WINDOWS_AUTH_DOMAIN':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_AUTH_DOMAIN');
+      case 'FIREBASE_WINDOWS_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_STORAGE_BUCKET');
+      case 'FIREBASE_WINDOWS_MEASUREMENT_ID':
+        return const String.fromEnvironment('FIREBASE_WINDOWS_MEASUREMENT_ID');
+      default:
+        return null;
+    }
   }
 }
