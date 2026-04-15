@@ -331,6 +331,10 @@ class SessionService {
 		return _repo.getById(sessionId);
 	}
 
+	Stream<SessionModel?> streamSession(String sessionId) {
+		return _repo.stream(sessionId);
+	}
+
 	Future<SessionMutationResult> updateSession({
 		required SessionModel session,
 		required List<SessionModel> sessions,

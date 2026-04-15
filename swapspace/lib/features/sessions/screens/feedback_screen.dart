@@ -39,6 +39,17 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final currentUid = authProvider.userId ?? '';
     final feedbackProvider = context.read<FeedbackProvider>();
 
+    if (currentUid.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _reviewees = const [];
+          _loading = false;
+          _alreadySubmitted = false;
+        });
+      }
+      return;
+    }
+
     final otherUids = <String>{
       ...widget.session.participantUids,
       widget.session.creatorUid,
@@ -46,11 +57,16 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         .where((uid) => uid != currentUid)
         .toList();
 
-    final submitted = await feedbackProvider.hasAllFeedbackSubmitted(
-      widget.session.sessionId,
-      currentUid,
-      otherUids.length,
-    );
+    bool submitted = false;
+    try {
+      submitted = await feedbackProvider.hasAllFeedbackSubmitted(
+        widget.session.sessionId,
+        currentUid,
+        otherUids.length,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error('FeedbackScreen._loadData status check error', e, stackTrace);
+    }
 
     final List<UserModel> reviewees = [];
     try {
@@ -155,7 +171,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton(
-                onPressed: () => context.go(RouteNames.home),
+                onPressed: _navigateBackToCurrentPage,
                 child: const Text('Back to Home'),
               ),
             ],
@@ -504,6 +520,23 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   Future<void> _submit(FeedbackProvider provider) async {
     final currentUid = context.read<AuthProvider>().userId ?? '';
+    if (currentUid.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in and try again.')),
+        );
+      }
+      return;
+    }
+
+    if (_reviewees.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No participants available for feedback.')),
+        );
+      }
+      return;
+    }
 
     bool allSuccess = true;
     for (final reviewee in _reviewees) {

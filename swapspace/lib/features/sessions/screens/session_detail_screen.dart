@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -27,22 +29,51 @@ class SessionDetailScreen extends StatefulWidget {
 }
 
 class _SessionDetailScreenState extends State<SessionDetailScreen> {
+  StreamSubscription<SessionModel?>? _sessionSubscription;
+  SessionModel? _liveSession;
   UserModel? _creator;
   bool _loadingCreator = true;
   bool _requestSent = false;
   bool _feedbackSubmitted = false;
 
+  SessionModel get _session => _liveSession ?? widget.session;
+
   @override
   void initState() {
     super.initState();
+    _listenSessionUpdates();
     _loadCreator();
     _checkFeedback();
+  }
+
+  @override
+  void dispose() {
+    _sessionSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenSessionUpdates() {
+    _sessionSubscription = context
+        .read<SessionProvider>()
+        .streamSession(_session.sessionId)
+        .listen((latest) {
+      if (!mounted || latest == null) return;
+      final previousStatus = _session.status;
+      setState(() {
+        _liveSession = latest;
+      });
+
+      if (previousStatus != SessionStatus.completed &&
+          latest.status == SessionStatus.completed) {
+        _checkFeedback();
+      }
+    });
   }
 
   Future<void> _loadCreator() async {
     try {
       _creator = await context.read<AuthProvider>().getUserById(
-        widget.session.creatorUid,
+        _session.creatorUid,
       );
     } catch (e, stackTrace) {
       AppLogger.error('SessionDetailScreen._loadCreator error', e, stackTrace);
@@ -51,29 +82,35 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Future<void> _checkFeedback() async {
-    if (widget.session.status != 'completed') return;
-      final currentUid = context.read<AuthProvider>().userId ?? '';
+    if (_session.status != SessionStatus.completed) return;
+    final currentUid = context.read<AuthProvider>().userId ?? '';
     if (currentUid.isEmpty) return;
     final revieweeUids = <String>{
-      ...widget.session.participantUids,
-      widget.session.creatorUid,
+      ..._session.participantUids,
+      _session.creatorUid,
     }..remove(currentUid);
     final otherCount = revieweeUids.length;
-    final submitted = await context
-        .read<FeedbackProvider>()
-        .hasAllFeedbackSubmitted(
-          widget.session.sessionId,
-          currentUid,
-          otherCount,
-        );
+    var submitted = false;
+    try {
+      submitted = await context
+          .read<FeedbackProvider>()
+          .hasAllFeedbackSubmitted(
+            _session.sessionId,
+            currentUid,
+            otherCount,
+          );
+    } catch (e, stackTrace) {
+      AppLogger.error('SessionDetailScreen._checkFeedback error', e, stackTrace);
+    }
     if (mounted) setState(() => _feedbackSubmitted = submitted);
   }
 
   @override
   Widget build(BuildContext context) {
-      final currentUid = context.read<AuthProvider>().userId ?? '';
-    final isCreator = widget.session.creatorUid == currentUid;
-    final isOpen = widget.session.status == 'open';
+    final session = _session;
+    final currentUid = context.read<AuthProvider>().userId ?? '';
+    final isCreator = session.creatorUid == currentUid;
+    final isOpen = session.status == SessionStatus.open;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -149,16 +186,16 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SessionStatusBadge(status: widget.session.status),
+                                SessionStatusBadge(status: _session.status),
                                 const SizedBox(height: AppSpacing.sm),
                                 Text(
-                                  widget.session.title,
+                                  _session.title,
                                   style: AppTextStyles.headingMedium,
                                 ),
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  widget.session.activityType[0].toUpperCase() +
-                                      widget.session.activityType.substring(1),
+                                  _session.activityType[0].toUpperCase() +
+                                      _session.activityType.substring(1),
                                   style: AppTextStyles.bodyMedium.copyWith(
                                     color: AppColors.primaryBlueDark,
                                   ),
@@ -168,10 +205,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                           ),
                         ],
                       ),
-                      if (widget.session.description.isNotEmpty) ...[
+                      if (_session.description.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.md),
                         Text(
-                          widget.session.description,
+                          _session.description,
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -197,7 +234,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                           QuickInfoChip(
                             icon: Icons.group_rounded,
                             text:
-                                '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
+                                '${_session.participantUids.length}/${_session.maxParticipants} joined',
                           ),
                         ],
                       ),
@@ -252,7 +289,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             )
           : InkWell(
               onTap: () => context.push(
-                RouteNames.userProfileById(widget.session.creatorUid),
+                RouteNames.userProfileById(_session.creatorUid),
               ),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               child: Padding(
@@ -284,8 +321,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         children: [
                           Text(
                             _creator?.name ??
-                                (widget.session.creatorName.isNotEmpty
-                                    ? widget.session.creatorName
+                                (_session.creatorName.isNotEmpty
+                                    ? _session.creatorName
                                     : 'Unknown'),
                             style: AppTextStyles.labelLarge,
                           ),
@@ -345,8 +382,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             icon: Icons.category,
             label: 'Type',
             value:
-                widget.session.activityType[0].toUpperCase() +
-                widget.session.activityType.substring(1),
+                _session.activityType[0].toUpperCase() +
+                _session.activityType.substring(1),
           ),
           const SizedBox(height: AppSpacing.sm),
           DetailRow(
@@ -370,38 +407,38 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
           DetailRow(
             icon: Icons.location_on,
             label: 'Location',
-            value: widget.session.location,
+            value: _session.location,
           ),
           const SizedBox(height: AppSpacing.sm),
           DetailRow(
             icon: Icons.group,
             label: 'Participants',
             value:
-                '${widget.session.participantUids.length}/${widget.session.maxParticipants} joined',
+                '${_session.participantUids.length}/${_session.maxParticipants} joined',
           ),
           const SizedBox(height: AppSpacing.sm),
           DetailRow(
-            icon: widget.session.interactionPreference == 'silent'
+            icon: _session.interactionPreference == 'silent'
                 ? Icons.volume_off
                 : Icons.chat_bubble_outline,
             label: 'Interaction',
             value:
-                widget.session.interactionPreference[0].toUpperCase() +
-                widget.session.interactionPreference.substring(1),
+                _session.interactionPreference[0].toUpperCase() +
+                _session.interactionPreference.substring(1),
           ),
-          if (widget.session.faculty.isNotEmpty) ...[
+          if (_session.faculty.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
             DetailRow(
               icon: Icons.school,
               label: 'Faculty',
-              value: widget.session.faculty,
+              value: _session.faculty,
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
           DetailRow(
             icon: Icons.star,
             label: 'Min Rating Required',
-            value: widget.session.minRating.toStringAsFixed(1),
+            value: _session.minRating.toStringAsFixed(1),
           ),
         ],
       ),
@@ -414,11 +451,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     bool isCreator,
     bool isOpen,
   ) {
-    final hasJoined = widget.session.participantUids.contains(currentUid);
-    final isMatched = widget.session.status == 'matched';
-    final isCompleted = widget.session.status == 'completed';
-    final isCancelled = widget.session.status == SessionStatus.cancelled;
-    final canCompleteByTime = _hasSessionEnded(widget.session);
+    final hasJoined = _session.participantUids.contains(currentUid);
+    final isMatched = _session.status == SessionStatus.matched;
+    final isCompleted = _session.status == SessionStatus.completed;
+    final isCancelled = _session.status == SessionStatus.cancelled;
+    final canCompleteByTime = _hasSessionEnded(_session);
 
     final buttons = <Widget>[];
 
@@ -434,7 +471,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
             onPressed: () =>
-                context.go(RouteNames.editSession, extra: widget.session),
+                context.go(RouteNames.editSession, extra: _session),
           ),
         ),
       );
@@ -473,7 +510,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
             onPressed: () async {
-              await context.push(RouteNames.feedback, extra: widget.session);
+              await context.push(RouteNames.feedback, extra: _session);
               if (!mounted) return;
               await _checkFeedback();
             },
@@ -503,7 +540,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               final messenger = ScaffoldMessenger.of(context);
               final router = GoRouter.of(context);
               final success = await provider.cancelSession(
-                widget.session.sessionId,
+                _session.sessionId,
               );
               if (!mounted) return;
               if (success) {
@@ -541,7 +578,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               final userName = authProvider.currentUser?.name ?? '';
               final provider = context.read<JoinRequestProvider>();
               final success = await provider.leaveSession(
-                sessionId: widget.session.sessionId,
+                sessionId: _session.sessionId,
                 uid: currentUid,
                 userName: userName,
               );
@@ -561,10 +598,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
     // Request to Join — for non-creator, non-joined users on sessions with room
     final hasRoom =
-        widget.session.participantUids.length < widget.session.maxParticipants;
+        _session.participantUids.length < _session.maxParticipants;
     if (!isCreator && !hasJoined && (isOpen || (isMatched && hasRoom))) {
       if (_requestSent) {
-        final creatorName = _creator?.name ?? widget.session.creatorName;
+        final creatorName = _creator?.name ?? _session.creatorName;
         buttons.add(
           Card(
             color: AppColors.successGreenLight,
@@ -609,7 +646,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Future<void> _completeSession() async {
-    if (!_hasSessionEnded(widget.session)) {
+    if (!_hasSessionEnded(_session)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('You can complete this session after its end time.'),
@@ -642,8 +679,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     if (confirmed != true || !mounted) return;
 
     final provider = context.read<SessionProvider>();
-    final updated = widget.session.copyWith(
-      status: 'completed',
+    final updated = _session.copyWith(
+      status: SessionStatus.completed,
       isActive: false,
       updatedAt: DateTime.now(),
     );
@@ -743,7 +780,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              widget.session.title,
+                              _session.title,
                               style: AppTextStyles.caption.copyWith(
                                 color: AppColors.primaryBlueDark,
                                 fontWeight: FontWeight.w600,
@@ -864,11 +901,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                                 final userName =
                                     authProvider.currentUser?.name ?? 'Someone';
                                 final success = await provider.sendJoinRequest(
-                                  sessionId: widget.session.sessionId,
-                                  creatorUid: widget.session.creatorUid,
+                                  sessionId: _session.sessionId,
+                                  creatorUid: _session.creatorUid,
                                   requesterUid: currentUid,
                                   requesterName: userName,
-                                  sessionTitle: widget.session.title,
+                                  sessionTitle: _session.title,
                                   message: messageController.text.trim(),
                                 );
                                 if (!mounted) return;
@@ -901,7 +938,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   IconData _activityIcon() {
-    return switch (widget.session.activityType.toLowerCase()) {
+    return switch (_session.activityType.toLowerCase()) {
       'study' => Icons.menu_book,
       'gym' => Icons.fitness_center,
       'football' => Icons.sports_soccer,
@@ -911,7 +948,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   String _formatDate() {
-    final d = widget.session.date;
+    final d = _session.date;
     const months = [
       'Jan',
       'Feb',
@@ -930,14 +967,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   String _formatTime() {
-    final d = widget.session.date;
+    final d = _session.date;
     final h = d.hour > 12 ? d.hour - 12 : (d.hour == 0 ? 12 : d.hour);
     final period = d.hour >= 12 ? 'PM' : 'AM';
     return '$h:${d.minute.toString().padLeft(2, '0')} $period';
   }
 
   String _formatDuration() {
-    final dur = widget.session.durationMinutes;
+    final dur = _session.durationMinutes;
     final days = dur ~/ (24 * 60);
     final remain = dur % (24 * 60);
     final hours = remain ~/ 60;
@@ -949,3 +986,4 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     return parts.join(' ');
   }
 }
+

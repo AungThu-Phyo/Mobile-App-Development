@@ -279,6 +279,10 @@ class SessionProvider extends BaseStateProvider {
     return _service.getSessionById(sessionId);
   }
 
+  Stream<SessionModel?> streamSession(String sessionId) {
+    return _service.streamSession(sessionId);
+  }
+
   Future<bool> updateSession(SessionModel session) async {
     if (session.maxParticipants < session.participantUids.length) {
       setError('Max participants cannot be less than current joined count');
