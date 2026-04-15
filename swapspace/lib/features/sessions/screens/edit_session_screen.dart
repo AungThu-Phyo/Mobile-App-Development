@@ -105,6 +105,19 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
       _selectedTime.minute,
     );
 
+    if (!sessionDate.isAfter(DateTime.now())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please choose a future date and time'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
     final days = int.tryParse(_daysController.text) ?? 0;
     final hours = int.tryParse(_hoursController.text) ?? 0;
     final minutes = int.tryParse(_minutesController.text) ?? 0;

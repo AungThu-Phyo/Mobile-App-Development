@@ -95,6 +95,19 @@ class _CreateSessionScreenState extends State<CreateSessionScreen> {
       _selectedTime.minute,
     );
 
+    if (!sessionDate.isAfter(DateTime.now())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please choose a future date and time'),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
     final session = SessionModel(
       sessionId: '${SessionConstants.sessionIdPrefix}${now.millisecondsSinceEpoch}',
       creatorUid: uid,

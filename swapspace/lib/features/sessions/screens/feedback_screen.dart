@@ -526,11 +526,19 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Feedback submitted! Thank you.')),
         );
-        if (context.canPop()) {
-          context.pop(true);
-        } else {
-          context.go(RouteNames.home);
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) {
+          navigator.pop(true);
+          return;
         }
+
+        final rootNavigator = Navigator.of(context, rootNavigator: true);
+        if (rootNavigator.canPop()) {
+          rootNavigator.pop(true);
+          return;
+        }
+
+        context.go(RouteNames.home);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -130,6 +130,19 @@ class JoinRequestService {
     required String sessionTitle,
     String message = '',
   }) async {
+    final session = await _sessionRepo.getById(sessionId);
+    if (session == null) {
+      throw StateError('session-not-found');
+    }
+    if (!session.isActive ||
+        session.status == SessionStatus.completed ||
+        session.status == SessionStatus.cancelled) {
+      throw StateError('session-not-accepting-requests');
+    }
+    if (session.participantUids.contains(requesterUid)) {
+      throw StateError('already-joined');
+    }
+
     // Prevent duplicate pending join requests from generating duplicate notifications.
     final existing = await _requestRepo.getFromUser(requesterUid);
     final hasPendingJoin = existing.any(
@@ -212,6 +225,12 @@ class JoinRequestService {
       final session = await _sessionRepo.getByIdTx(tx, sessionId);
       if (session == null) {
         throw StateError('session-not-found');
+      }
+
+      if (!session.isActive ||
+          session.status == SessionStatus.completed ||
+          session.status == SessionStatus.cancelled) {
+        throw StateError('session-not-accepting-requests');
       }
 
       creatorUid = session.creatorUid;
@@ -395,6 +414,12 @@ class JoinRequestService {
     final session = await _sessionRepo.getById(sessionId);
     if (session == null) {
       throw StateError('session-not-found');
+    }
+
+    if (!session.isActive ||
+        session.status == SessionStatus.completed ||
+        session.status == SessionStatus.cancelled) {
+      throw StateError('session-not-accepting-requests');
     }
 
     if (!session.participantUids.contains(uid)) {

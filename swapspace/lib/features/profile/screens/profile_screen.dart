@@ -54,6 +54,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _refreshProfile() async {
+    final authProvider = context.read<AuthProvider>();
+    final sessionProvider = context.read<SessionProvider>();
+    final uid = authProvider.userId ?? '';
+
+    await authProvider.refreshCurrentUser();
+    if (uid.isEmpty) return;
+
+    await Future.wait([
+      sessionProvider.loadCreatedSessions(uid),
+      sessionProvider.loadJoinedSessions(uid),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -144,11 +158,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 860;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          return RefreshIndicator(
+            onRefresh: _refreshProfile,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 ProfileHero(user: user),
                 const SizedBox(height: AppSpacing.lg),
                 if (isWide)
@@ -215,7 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-              ],
+                ],
+              ),
             ),
           );
         },

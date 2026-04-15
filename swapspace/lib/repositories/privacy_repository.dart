@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/errors/repository_exception.dart';
+import '../core/constants/session_constants.dart';
 
 class PrivacyRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -53,6 +54,8 @@ class PrivacyRepository {
 
   Future<void> deleteUserData(String uid) async {
     try {
+      await _detachUserFromForeignSessions(uid);
+
       final initialPlan = await _collectDeletionPlan(uid);
       if (initialPlan.refs.isEmpty) {
         return;
@@ -86,6 +89,71 @@ class PrivacyRepository {
         message: 'Unable to delete account data',
         cause: e,
       );
+    }
+  }
+
+  Future<void> _detachUserFromForeignSessions(String uid) async {
+    final participantSessionsFuture =
+        _db.collection('sessions').where('participantUids', arrayContains: uid).get();
+    final partnerSessionsFuture =
+        _db.collection('sessions').where('partnerUid', isEqualTo: uid).get();
+
+    final results = await Future.wait([participantSessionsFuture, partnerSessionsFuture]);
+    final participantSessions = results[0];
+    final partnerSessions = results[1];
+
+    final sessionsByPath = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    for (final doc in participantSessions.docs) {
+      sessionsByPath[doc.reference.path] = doc;
+    }
+    for (final doc in partnerSessions.docs) {
+      sessionsByPath[doc.reference.path] = doc;
+    }
+
+    if (sessionsByPath.isEmpty) return;
+
+    const chunkSize = 300;
+    final docs = sessionsByPath.values.toList();
+
+    for (var i = 0; i < docs.length; i += chunkSize) {
+      final chunk = docs.skip(i).take(chunkSize);
+      final batch = _db.batch();
+
+      for (final doc in chunk) {
+        final data = doc.data();
+        final creatorUid = (data['creatorUid'] as String?) ?? '';
+        if (creatorUid == uid) {
+          // Creator-owned sessions are deleted by the regular deletion plan.
+          continue;
+        }
+
+        final currentParticipants =
+            (data['participantUids'] as List<dynamic>? ?? const [])
+                .map((entry) => entry.toString())
+                .toList();
+        currentParticipants.removeWhere((participantUid) => participantUid == uid);
+
+        final currentPartnerUid = (data['partnerUid'] as String?) ?? '';
+        final maxParticipants = (data['maxParticipants'] as num?)?.toInt() ?? 2;
+        final currentStatus = (data['status'] as String?) ?? SessionStatus.open;
+
+        final updates = <String, dynamic>{
+          'participantUids': currentParticipants,
+          'partnerUid': currentPartnerUid == uid ? '' : currentPartnerUid,
+          'updatedAt': Timestamp.now(),
+        };
+
+        if (currentStatus != SessionStatus.completed &&
+            currentStatus != SessionStatus.cancelled) {
+          final isFull = currentParticipants.length >= maxParticipants;
+          updates['status'] = isFull ? SessionStatus.matched : SessionStatus.open;
+          updates['isActive'] = !isFull;
+        }
+
+        batch.update(doc.reference, updates);
+      }
+
+      await batch.commit();
     }
   }
 

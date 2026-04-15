@@ -5,6 +5,7 @@ import 'package:swapspace/repositories/join_request_repository.dart';
 import 'package:swapspace/repositories/paginated_query_result.dart';
 import 'package:swapspace/repositories/session_repository.dart';
 import 'package:swapspace/repositories/user_repository.dart';
+import 'package:swapspace/models/session_model.dart';
 import 'package:swapspace/services/join_request_service.dart';
 import 'package:swapspace/services/notification_service.dart';
 import 'package:swapspace/core/constants/session_constants.dart';
@@ -24,6 +25,26 @@ void main() {
     final sessionRepo = MockSessionRepository();
     final userRepo = MockUserRepository();
     final notificationService = MockNotificationService();
+
+    final now = DateTime(2024, 1, 1, 10, 0);
+    when(() => sessionRepo.getById('s-1')).thenAnswer(
+      (_) async => SessionModel(
+        sessionId: 's-1',
+        creatorUid: 'creator-1',
+        creatorName: 'Creator',
+        activityType: SessionConstants.defaultActivityType,
+        title: 'Session Title',
+        location: 'Library',
+        date: now.add(const Duration(days: 1)),
+        durationMinutes: 60,
+        maxParticipants: 3,
+        participantUids: const ['creator-1'],
+        status: SessionStatus.open,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
 
     when(() => requestRepo.createRequestId()).thenReturn('req-1');
     when(() => requestRepo.getFromUser('requester-1'))
