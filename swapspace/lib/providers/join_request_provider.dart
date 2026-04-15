@@ -65,10 +65,8 @@ class JoinRequestProvider extends BaseStateProvider {
       _liveIncomingRequests = requests;
       _hasLiveIncomingData = true;
 
-      if (_incomingRequests.isEmpty) {
-        _incomingRequests = requests;
-        unawaited(_hydrateRequestRelations());
-      }
+      _incomingRequests = requests;
+      unawaited(_hydrateRequestRelations());
 
       notifyListeners();
     }, onError: (e, stackTrace) {

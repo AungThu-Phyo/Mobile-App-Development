@@ -108,7 +108,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Privacy Consent'), findsOneWidget);
-    await tester.tap(find.text('I Agree'));
+    expect(find.text('Next'), findsNothing);
+    await tester.tap(find.text('I have read and agree'));
+    await tester.pumpAndSettle();
+    expect(find.text('Next'), findsOneWidget);
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sign in with School Email'));

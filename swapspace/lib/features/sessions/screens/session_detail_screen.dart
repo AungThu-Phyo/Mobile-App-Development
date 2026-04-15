@@ -469,8 +469,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             ),
-            onPressed: () =>
-                context.go(RouteNames.feedback, extra: widget.session),
+            onPressed: () async {
+              await context.push(RouteNames.feedback, extra: widget.session);
+              if (!mounted) return;
+              await _checkFeedback();
+            },
           ),
         ),
       );
@@ -604,7 +607,6 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
   Future<void> _completeSession() async {
     final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -637,12 +639,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     if (!mounted) return;
     if (success) {
       await context.read<AuthProvider>().refreshCurrentUser();
+      if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Session completed! Please give feedback.'),
         ),
       );
-      router.go(RouteNames.feedback, extra: updated);
+      await context.push(RouteNames.feedback, extra: updated);
+      if (!mounted) return;
+      await _checkFeedback();
     }
   }
 

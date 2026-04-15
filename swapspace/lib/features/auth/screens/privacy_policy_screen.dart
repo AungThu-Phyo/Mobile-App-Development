@@ -25,14 +25,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     }
   }
 
-  void _showBackBlocked() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please accept the privacy policy to continue.'),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     const sections = <_PolicySection>[
@@ -79,20 +71,11 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       ),
     ];
 
-    return PopScope(
-      canPop: _accepted,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          _showBackBlocked();
-        }
-      },
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: const Text('Privacy Policy'),
           leading: IconButton(
-            onPressed: _accepted
-                ? () => Navigator.of(context).pop()
-                : _showBackBlocked,
+            onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.arrow_back),
           ),
         ),
@@ -160,8 +143,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 

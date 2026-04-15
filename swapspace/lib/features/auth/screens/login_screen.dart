@@ -34,27 +34,60 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<bool> _showConsentDialog() async {
     final consentProvider = context.read<ConsentProvider>();
+    final screenContext = context;
+    var agreed = consentProvider.hasConsented;
     final accepted = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) {
-            return AlertDialog(
-              title: const Text('Privacy Consent'),
-              content: const SingleChildScrollView(
-                child: Text(
-                  'SwapSpace collects your name, email, profile details, sessions, requests, and feedback to match students and run the app. Firebase and Google services are used for login and data storage. Please accept to continue.',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Decline'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('I Agree'),
-                ),
-              ],
+            return StatefulBuilder(
+              builder: (builderContext, setDialogState) {
+                return AlertDialog(
+                  title: const Text('Privacy Consent'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SwapSpace uses your profile, sessions, requests, and feedback data to run matching and app features.',
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(false);
+                          WidgetsBinding.instance.addPostFrameCallback((_) async {
+                            if (!mounted) return;
+                            await screenContext.push(RouteNames.privacyPolicy);
+                            if (!mounted) return;
+                            _consentDialogShown = consentProvider.hasConsented;
+                          });
+                        },
+                        child: const Text('Read Privacy Policy'),
+                      ),
+                      CheckboxListTile(
+                        value: agreed,
+                        onChanged: (value) {
+                          setDialogState(() => agreed = value ?? false);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text('I have read and agree'),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      child: const Text('Decline'),
+                    ),
+                    if (agreed)
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Next'),
+                      ),
+                  ],
+                );
+              },
             );
           },
         ) ??
@@ -70,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final consentProvider = context.read<ConsentProvider>();
     if (!consentProvider.hasConsented) {
       final accepted = await _showConsentDialog();
-      if (!accepted || !mounted) return;
+      if (!accepted || !mounted || !consentProvider.hasConsented) return;
     }
 
     final authProvider = context.read<AuthProvider>();
@@ -85,7 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -179,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           TextButton(
-                            onPressed: () => context.go(RouteNames.privacyPolicy),
+                            onPressed: () => context.push(RouteNames.privacyPolicy),
                             child: const Text('Read Privacy Policy'),
                           ),
                           const SizedBox(height: AppSpacing.sm),
