@@ -19,6 +19,12 @@ class JoinRequestCard extends StatelessWidget {
     final isActing = context.select<JoinRequestProvider, bool>(
       (provider) => provider.isRequestActing(request.requestId),
     );
+    final isAccepting = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestAccepting(request.requestId),
+    );
+    final isRejecting = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestRejecting(request.requestId),
+    );
     final requester = joinRequestProvider.getCachedUser(request.requesterUid);
     final session = joinRequestProvider.getCachedSession(request.sessionId);
     final isLeaveRequest = request.requestType == JoinRequestType.leave;
@@ -35,6 +41,8 @@ class JoinRequestCard extends StatelessWidget {
       isActing: isActing,
       acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
       rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
+      isAccepting: isAccepting,
+      isRejecting: isRejecting,
       onAccept: () async {
         final provider = context.read<JoinRequestProvider>();
         final success = await provider.acceptRequest(request.requestId);
@@ -46,8 +54,8 @@ class JoinRequestCard extends StatelessWidget {
               SnackBar(
                 content: Text(
                   isLeaveRequest
-                      ? 'Leave request approved!'
-                      : 'Request accepted!',
+                      ? 'You approved the leave request.'
+                      : 'You accepted the join request.',
                 ),
               ),
             );
@@ -71,7 +79,9 @@ class JoinRequestCard extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                isLeaveRequest ? 'Leave request denied' : 'Request rejected',
+                  isLeaveRequest
+                      ? 'You denied the leave request.'
+                      : 'You rejected the join request.',
               ),
             ),
           );

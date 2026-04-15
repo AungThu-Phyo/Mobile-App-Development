@@ -264,7 +264,10 @@ class JoinRequestService {
 
     // Handle other pending requests after the transaction commits.
     // This avoids mixing non-transactional queries within a transaction callback.
-    if (wasAcceptedInThisCall && sessionId.isNotEmpty) {
+    if (wasAcceptedInThisCall &&
+        requestType == JoinRequestType.join &&
+        sessionIsFull &&
+        sessionId.isNotEmpty) {
       final pendingSameSession = await _requestRepo.getPendingForSession(sessionId);
       for (final other in pendingSameSession) {
         if (other.requestId == requestId || other.requestType != JoinRequestType.join) {

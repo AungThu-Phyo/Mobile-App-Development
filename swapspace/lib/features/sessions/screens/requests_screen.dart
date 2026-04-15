@@ -274,6 +274,12 @@ class _IncomingRequestCard extends StatelessWidget {
     final isActing = context.select<JoinRequestProvider, bool>(
       (provider) => provider.isRequestActing(request.requestId),
     );
+    final isAccepting = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestAccepting(request.requestId),
+    );
+    final isRejecting = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestRejecting(request.requestId),
+    );
 
     return RequestReviewCard(
       request: request,
@@ -287,6 +293,8 @@ class _IncomingRequestCard extends StatelessWidget {
       isActing: isActing,
       acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
       rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
+      isAccepting: isAccepting,
+      isRejecting: isRejecting,
       onAccept: () async {
         final provider = context.read<JoinRequestProvider>();
         final success = await provider.acceptRequest(request.requestId);
@@ -295,8 +303,8 @@ class _IncomingRequestCard extends StatelessWidget {
             SnackBar(
               content: Text(
                 isLeaveRequest
-                    ? 'Leave request approved'
-                    : 'Request accepted — matched!',
+                    ? 'You approved the leave request.'
+                    : 'You accepted the join request.',
               ),
             ),
           );
@@ -309,7 +317,9 @@ class _IncomingRequestCard extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                isLeaveRequest ? 'Leave request denied' : 'Request rejected',
+                isLeaveRequest
+                    ? 'You denied the leave request.'
+                    : 'You rejected the join request.',
               ),
             ),
           );

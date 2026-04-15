@@ -295,6 +295,21 @@ class SessionService {
 		);
 		await _repo.update(updated);
 
+		for (final uid in updated.participantUids) {
+			if (uid != updated.creatorUid) {
+				await _notificationService.sendNotification(
+					recipientUid: uid,
+					senderUid: updated.creatorUid,
+					senderName: updated.creatorName,
+					sessionId: updated.sessionId,
+					sessionTitle: updated.title,
+					type: NotificationType.sessionUpdated,
+					message:
+						'${updated.creatorName} cancelled the session ${updated.title}',
+				);
+			}
+		}
+
 		final nextSessions = sessions.where((s) => s.sessionId != sessionId).toList();
 		final nextMySessions = List<SessionModel>.from(mySessions);
 		final myIdx = nextMySessions.indexWhere((s) => s.sessionId == sessionId);
@@ -322,11 +337,22 @@ class SessionService {
 		required List<SessionModel> mySessions,
 		required SessionModel? selectedSession,
 	}) async {
+		final previous = await _repo.getById(session.sessionId);
+
 		// If session was matched but now has room, revert to open
 		var toSave = session;
 		if (session.status == SessionStatus.matched &&
 				session.participantUids.length < session.maxParticipants) {
 			toSave = session.copyWith(status: SessionStatus.open, isActive: true);
+		}
+
+		if (session.status != SessionStatus.completed &&
+				session.status != SessionStatus.cancelled) {
+			final isFull = session.participantUids.length >= session.maxParticipants;
+			toSave = toSave.copyWith(
+				status: isFull ? SessionStatus.matched : SessionStatus.open,
+				isActive: !isFull,
+			);
 		}
 
 		final updated = toSave.copyWith(updatedAt: DateTime.now());
@@ -345,7 +371,18 @@ class SessionService {
 				? updated
 				: selectedSession;
 
-		// Notify all joined participants (except the creator) about the update
+		final wasCompleted = previous?.status == SessionStatus.completed;
+		final isCompletedNow = updated.status == SessionStatus.completed;
+		final wasCancelled = previous?.status == SessionStatus.cancelled;
+		final isCancelledNow = updated.status == SessionStatus.cancelled;
+
+		final actionMessage = isCompletedNow && !wasCompleted
+				? '${updated.creatorName} completed the session ${updated.title}'
+				: isCancelledNow && !wasCancelled
+						? '${updated.creatorName} cancelled the session ${updated.title}'
+						: '${updated.creatorName} updated the session ${updated.title}';
+
+		// Notify all joined participants (except the creator) about the action.
 		for (final uid in updated.participantUids) {
 			if (uid != updated.creatorUid) {
 				await _notificationService.sendNotification(
@@ -355,7 +392,7 @@ class SessionService {
 					sessionId: updated.sessionId,
 					sessionTitle: updated.title,
 					type: NotificationType.sessionUpdated,
-					message: '${updated.creatorName} updated the session ${updated.title}',
+					message: actionMessage,
 				);
 			}
 		}

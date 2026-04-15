@@ -18,6 +18,8 @@ class RequestReviewCard extends StatelessWidget {
   final String acceptLabel;
   final String rejectLabel;
   final String? successMessage;
+  final bool isAccepting;
+  final bool isRejecting;
 
   const RequestReviewCard({
     super.key,
@@ -31,6 +33,8 @@ class RequestReviewCard extends StatelessWidget {
     required this.acceptLabel,
     required this.rejectLabel,
     this.successMessage,
+    this.isAccepting = false,
+    this.isRejecting = false,
   });
 
   @override
@@ -41,6 +45,7 @@ class RequestReviewCard extends StatelessWidget {
     final canReview = isLeaveRequest
         ? (session != null && session!.status != SessionStatus.completed)
         : session?.status == SessionStatus.open;
+    final isBusy = isActing || isAccepting || isRejecting;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -175,18 +180,40 @@ class RequestReviewCard extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.errorRed),
                       ),
-                      onPressed: isActing ? null : onReject,
-                      child: Text(
-                        rejectLabel,
-                        style: TextStyle(color: AppColors.errorRed),
-                      ),
+                      onPressed: isBusy ? () {} : onReject,
+                      child: isRejecting
+                          ? SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.errorRed,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              rejectLabel,
+                              style: TextStyle(color: AppColors.errorRed),
+                            ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: isActing ? null : onAccept,
-                      child: Text(acceptLabel),
+                      onPressed: isBusy ? () {} : onAccept,
+                      child: isAccepting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Text(acceptLabel),
                     ),
                   ),
                 ],

@@ -30,6 +30,8 @@ class JoinRequestProvider extends BaseStateProvider {
   bool _hasLiveIncomingData = false;
   bool _hasLiveOutgoingData = false;
   final Set<String> _actingRequestIds = <String>{};
+  final Set<String> _acceptingRequestIds = <String>{};
+  final Set<String> _rejectingRequestIds = <String>{};
 
   List<JoinRequestModel> get incomingRequests => _incomingRequests;
   List<JoinRequestModel> get outgoingRequests =>
@@ -43,6 +45,10 @@ class JoinRequestProvider extends BaseStateProvider {
 
   bool isRequestActing(String requestId) =>
       _actingRequestIds.contains(requestId);
+    bool isRequestAccepting(String requestId) =>
+      _acceptingRequestIds.contains(requestId);
+    bool isRequestRejecting(String requestId) =>
+      _rejectingRequestIds.contains(requestId);
 
   int get pendingIncomingCount =>
       _hasLiveIncomingData
@@ -246,6 +252,7 @@ class JoinRequestProvider extends BaseStateProvider {
     }
 
     _actingRequestIds.add(requestId);
+    _acceptingRequestIds.add(requestId);
     notifyListeners();
 
     return runWithLoading<bool>(
@@ -254,12 +261,16 @@ class JoinRequestProvider extends BaseStateProvider {
       action: () async {
         final result = await _service.acceptRequest(requestId: requestId);
         _incomingRequests =
-            await _service.loadIncomingRequests(result.creatorUid);
+            _incomingRequests.where((r) => r.requestId != requestId).toList();
+        _liveIncomingRequests =
+            _liveIncomingRequests.where((r) => r.requestId != requestId).toList();
+        _incomingRequests = await _service.loadIncomingRequests(result.creatorUid);
         await _hydrateRequestRelations();
         return true;
       },
     ).whenComplete(() {
       _actingRequestIds.remove(requestId);
+      _acceptingRequestIds.remove(requestId);
       notifyListeners();
     });
   }
@@ -270,6 +281,7 @@ class JoinRequestProvider extends BaseStateProvider {
     }
 
     _actingRequestIds.add(requestId);
+    _rejectingRequestIds.add(requestId);
     notifyListeners();
 
     return runWithLoading<bool>(
@@ -282,6 +294,10 @@ class JoinRequestProvider extends BaseStateProvider {
         );
 
         await _service.rejectRequest(requestId: requestId);
+        _incomingRequests =
+            _incomingRequests.where((r) => r.requestId != requestId).toList();
+        _liveIncomingRequests =
+            _liveIncomingRequests.where((r) => r.requestId != requestId).toList();
         if (request.requestId.isNotEmpty) {
           _incomingRequests = await _service.loadIncomingRequests(request.creatorUid);
           await _hydrateRequestRelations();
@@ -290,6 +306,7 @@ class JoinRequestProvider extends BaseStateProvider {
       },
     ).whenComplete(() {
       _actingRequestIds.remove(requestId);
+      _rejectingRequestIds.remove(requestId);
       notifyListeners();
     });
   }
