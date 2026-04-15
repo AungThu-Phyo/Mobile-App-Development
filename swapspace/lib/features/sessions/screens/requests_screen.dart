@@ -271,6 +271,9 @@ class _IncomingRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLeaveRequest = request.requestType == JoinRequestType.leave;
+    final isActing = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestActing(request.requestId),
+    );
 
     return RequestReviewCard(
       request: request,
@@ -281,7 +284,7 @@ class _IncomingRequestCard extends StatelessWidget {
           : () => context.push(
                 RouteNames.userProfileById(requester!.uid),
               ),
-      isActing: false,
+      isActing: isActing,
       acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
       rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
       onAccept: () async {

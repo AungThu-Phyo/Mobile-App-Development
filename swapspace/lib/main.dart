@@ -186,11 +186,28 @@ bool _hasRequiredWebDartDefines() {
 }
 
 Future<void> _activateAppCheck() async {
-  if (kIsWeb) {
-    return;
-  }
-
   try {
+    if (kIsWeb) {
+      const siteKeyFromDefine =
+          String.fromEnvironment('APP_CHECK_WEB_RECAPTCHA_SITE_KEY');
+      final siteKey = siteKeyFromDefine.isNotEmpty
+          ? siteKeyFromDefine
+          : (dotenv.env['APP_CHECK_WEB_RECAPTCHA_SITE_KEY'] ?? '').trim();
+
+      if (siteKey.isEmpty) {
+        debugPrint(
+          '⚠️ App Check (Web) skipped: APP_CHECK_WEB_RECAPTCHA_SITE_KEY is missing.',
+        );
+        return;
+      }
+
+      await FirebaseAppCheck.instance.activate(
+        providerWeb: ReCaptchaV3Provider(siteKey),
+      );
+      debugPrint('✅ Firebase App Check enabled for Web (reCAPTCHA v3).');
+      return;
+    }
+
     await FirebaseAppCheck.instance.activate(
       providerAndroid: kDebugMode
           ? const AndroidDebugProvider()
@@ -199,6 +216,7 @@ Future<void> _activateAppCheck() async {
           ? const AppleDebugProvider()
           : const AppleAppAttestProvider(),
     );
+    debugPrint('✅ Firebase App Check enabled for mobile platform.');
   } catch (e) {
     debugPrint('Firebase App Check activation skipped: $e');
   }

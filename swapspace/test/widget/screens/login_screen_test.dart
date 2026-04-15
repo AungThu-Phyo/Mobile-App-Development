@@ -41,4 +41,79 @@ void main() {
     expect(find.text('SwapSpace'), findsOneWidget);
     expect(find.text('Sign in with School Email'), findsOneWidget);
   });
+
+  testWidgets('declining consent keeps sign-in blocked', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'privacy_consent_accepted': false,
+    });
+
+    final authService = MockAuthService();
+    when(() => authService.authStateStream())
+        .thenAnswer((_) => Stream.value(null));
+    when(() => authService.signInWithGoogle())
+        .thenAnswer((_) async => true);
+
+    final authProvider = AuthProvider(authService: authService);
+    final consentProvider = ConsentProvider();
+    await consentProvider.loadConsent();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: authProvider),
+          ChangeNotifierProvider.value(value: consentProvider),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Privacy Consent'), findsOneWidget);
+    await tester.tap(find.text('Decline'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sign in with School Email'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Privacy Consent'), findsOneWidget);
+    verifyNever(() => authService.signInWithGoogle());
+  });
+
+  testWidgets('accepting consent allows Google sign-in attempt', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'privacy_consent_accepted': false,
+    });
+
+    final authService = MockAuthService();
+    when(() => authService.authStateStream())
+        .thenAnswer((_) => Stream.value(null));
+    when(() => authService.signInWithGoogle())
+        .thenAnswer((_) async => true);
+
+    final authProvider = AuthProvider(authService: authService);
+    final consentProvider = ConsentProvider();
+    await consentProvider.loadConsent();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: authProvider),
+          ChangeNotifierProvider.value(value: consentProvider),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Privacy Consent'), findsOneWidget);
+    await tester.tap(find.text('I Agree'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sign in with School Email'));
+    await tester.pumpAndSettle();
+
+    verify(() => authService.signInWithGoogle()).called(1);
+  });
 }

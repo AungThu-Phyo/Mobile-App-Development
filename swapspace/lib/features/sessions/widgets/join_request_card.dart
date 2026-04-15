@@ -16,6 +16,9 @@ class JoinRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final joinRequestProvider = context.read<JoinRequestProvider>();
+    final isActing = context.select<JoinRequestProvider, bool>(
+      (provider) => provider.isRequestActing(request.requestId),
+    );
     final requester = joinRequestProvider.getCachedUser(request.requesterUid);
     final session = joinRequestProvider.getCachedSession(request.sessionId);
     final isLeaveRequest = request.requestType == JoinRequestType.leave;
@@ -29,7 +32,7 @@ class JoinRequestCard extends StatelessWidget {
           : () => context.push(
                 RouteNames.userProfileById(requester.uid),
               ),
-      isActing: false,
+      isActing: isActing,
       acceptLabel: isLeaveRequest ? 'Approve Leave' : 'Accept',
       rejectLabel: isLeaveRequest ? 'Deny Leave' : 'Reject',
       onAccept: () async {

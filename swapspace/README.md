@@ -9,6 +9,44 @@ A new Flutter project.
 3. Keep `.env` out of git; it is already listed in `.gitignore`.
 4. Run `flutter pub get` and then `flutter run`.
 
+## Firebase App Check Setup
+
+This app already calls App Check activation in [lib/main.dart](lib/main.dart).
+
+### 1) Firebase Console Configuration
+
+1. Open Firebase Console -> Build -> App Check.
+2. Register each app in this project:
+	- Android: Play Integrity (recommended for release).
+	- iOS: App Attest (fallback to DeviceCheck in Console if needed).
+	- Web: reCAPTCHA v3.
+3. For Web, copy the reCAPTCHA v3 site key.
+
+### 2) Local Environment
+
+Add the site key to your local `.env` file:
+
+APP_CHECK_WEB_RECAPTCHA_SITE_KEY=your-recaptcha-v3-site-key
+
+For Web builds without `.env`, you can also pass:
+
+--dart-define=APP_CHECK_WEB_RECAPTCHA_SITE_KEY=your-recaptcha-v3-site-key
+
+### 3) Debug Testing Notes
+
+- Android debug builds use Android Debug provider in code.
+- iOS debug builds use Apple Debug provider in code.
+- Register debug tokens shown in logs under App Check -> Manage debug tokens.
+
+### 4) Enforce App Check
+
+After verifying clients are sending valid tokens, enable enforcement in App Check for:
+
+- Cloud Firestore
+- Firebase Authentication (if used in your project setup)
+
+Roll out enforcement gradually to avoid blocking older app builds.
+
 ## CI/CD Auto Deploy
 
 This repository is configured to auto-deploy from GitHub workflow runs on push.

@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../core/errors/repository_exception.dart';
 import '../core/utils/app_logger.dart';
 
 abstract class BaseStateProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
+  bool _pendingNotify = false;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -15,7 +17,7 @@ abstract class BaseStateProvider extends ChangeNotifier {
       return;
     }
     _isLoading = value;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   void setError(String? value) {
@@ -23,7 +25,7 @@ abstract class BaseStateProvider extends ChangeNotifier {
       return;
     }
     _error = value;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   void clearError() {
@@ -68,5 +70,30 @@ abstract class BaseStateProvider extends ChangeNotifier {
       }
     }
     return fallback;
+  }
+
+  void _notifyListenersSafely() {
+    final binding = SchedulerBinding.instance;
+    final isBuildPhase =
+        binding.schedulerPhase == SchedulerPhase.transientCallbacks ||
+        binding.schedulerPhase == SchedulerPhase.persistentCallbacks;
+
+    if (isBuildPhase) {
+      if (_pendingNotify) {
+        return;
+      }
+      _pendingNotify = true;
+      binding.addPostFrameCallback((_) {
+        _pendingNotify = false;
+        if (hasListeners) {
+          notifyListeners();
+        }
+      });
+      return;
+    }
+
+    if (hasListeners) {
+      notifyListeners();
+    }
   }
 }

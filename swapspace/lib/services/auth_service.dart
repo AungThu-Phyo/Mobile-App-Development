@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../core/errors/repository_exception.dart';
 import '../core/utils/app_logger.dart';
 import '../models/user_model.dart';
@@ -26,15 +30,33 @@ class AuthService {
 
 	Future<bool> signInWithGoogle() async {
 		try {
-			final googleProvider = GoogleAuthProvider();
-			googleProvider.addScope('email');
-			googleProvider.addScope('profile');
-			googleProvider.setCustomParameters({
-				'prompt': 'select_account',
-			});
+			if (kIsWeb) {
+				final googleProvider = GoogleAuthProvider();
+				googleProvider.addScope('email');
+				googleProvider.addScope('profile');
+				googleProvider.setCustomParameters({
+					'prompt': 'select_account',
+				});
 
+				final userCredential =
+						await _firebaseAuth.signInWithPopup(googleProvider);
+				return userCredential.user != null;
+			}
+
+			final googleSignIn = GoogleSignIn.instance;
+			await googleSignIn.initialize();
+			final account = await googleSignIn.authenticate(
+				scopeHint: const ['email', 'profile'],
+			);
+			if (account.email.isEmpty) {
+				throw AuthCanceledException('Sign in cancelled');
+			}
+			final auth = account.authentication;
+			final credential = GoogleAuthProvider.credential(
+				idToken: auth.idToken,
+			);
 			final userCredential =
-					await _firebaseAuth.signInWithPopup(googleProvider);
+					await _firebaseAuth.signInWithCredential(credential);
 			return userCredential.user != null;
 		} on FirebaseAuthException catch (e, stackTrace) {
 			AppLogger.error('AuthService.signInWithGoogle error', e, stackTrace);
@@ -43,11 +65,22 @@ class AuthService {
 				throw AuthCanceledException('Sign in cancelled');
 			}
 			throw AuthException(_friendlyAuthMessage(e, fallback: 'Unable to sign in. Please try again.'));
+		} on GoogleSignInException catch (e, stackTrace) {
+			AppLogger.error('AuthService.signInWithGoogle error', e, stackTrace);
+			if (e.code == GoogleSignInExceptionCode.canceled) {
+				throw AuthCanceledException('Sign in cancelled');
+			}
+			throw AuthException('Unable to sign in. Please try again.');
 		}
 	}
 
 	Future<void> signOut() async {
 		await _firebaseAuth.signOut();
+		if (!kIsWeb) {
+			unawaited(
+				GoogleSignIn.instance.signOut().timeout(const Duration(seconds: 5)),
+			);
+		}
 	}
 
 	Future<void> deleteCurrentAuthAccount() async {
@@ -71,55 +104,89 @@ class AuthService {
 		if (user == null) {
 			throw AuthException('No authenticated user');
 		}
-		final googleProvider = GoogleAuthProvider();
-		googleProvider.addScope('email');
-		googleProvider.addScope('profile');
-		if (user.email != null && user.email!.isNotEmpty) {
-			googleProvider.setCustomParameters({
-				'login_hint': user.email!,
-			});
+		if (kIsWeb) {
+			final googleProvider = GoogleAuthProvider();
+			googleProvider.addScope('email');
+			googleProvider.addScope('profile');
+			if (user.email != null && user.email!.isNotEmpty) {
+				googleProvider.setCustomParameters({
+					'login_hint': user.email!,
+				});
+			}
+
+			try {
+				await user.reauthenticateWithProvider(googleProvider);
+				return;
+			} on FirebaseAuthException catch (e, stackTrace) {
+				AppLogger.error('AuthService.reauthenticateWithGoogle error', e, stackTrace);
+				if (e.code == 'popup-closed-by-user' ||
+						e.code == 'cancelled-popup-request') {
+					throw AuthCanceledException('Re-authentication cancelled');
+				}
+				if (e.code == 'user-mismatch') {
+					throw AuthException('Please choose the same Google account you are currently signed in with.');
+				}
+				if (e.code == 'popup-blocked') {
+					throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
+				}
+
+				// Fallback for web popup edge-cases: refresh sign-in using popup.
+				try {
+					final credential = await _firebaseAuth.signInWithPopup(googleProvider);
+					if (credential.user == null || credential.user!.uid != user.uid) {
+						throw AuthException('Please choose the same Google account you are currently signed in with.');
+					}
+					return;
+				} on FirebaseAuthException catch (fallbackError, fallbackStackTrace) {
+					AppLogger.error('AuthService.reauthenticateWithGoogle fallback error', fallbackError, fallbackStackTrace);
+					if (fallbackError.code == 'popup-closed-by-user' ||
+							fallbackError.code == 'cancelled-popup-request') {
+						throw AuthCanceledException('Re-authentication cancelled');
+					}
+					if (fallbackError.code == 'popup-blocked') {
+						throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
+					}
+					if (fallbackError.code == 'user-mismatch') {
+						throw AuthException('Please choose the same Google account you are currently signed in with.');
+					}
+					throw AuthException(_friendlyAuthMessage(
+						fallbackError,
+						fallback: _friendlyAuthMessage(e, fallback: 'Unable to re-authenticate. Please try again.'),
+					));
+				}
+			}
 		}
 
 		try {
-			await user.reauthenticateWithProvider(googleProvider);
-			return;
-		} on FirebaseAuthException catch (e, stackTrace) {
-			AppLogger.error('AuthService.reauthenticateWithGoogle error', e, stackTrace);
-			if (e.code == 'popup-closed-by-user' ||
-					e.code == 'cancelled-popup-request') {
+			final googleSignIn = GoogleSignIn.instance;
+			await googleSignIn.initialize();
+			final account = await googleSignIn.authenticate(
+				scopeHint: const ['email', 'profile'],
+			);
+			if (account.email.isEmpty) {
 				throw AuthCanceledException('Re-authentication cancelled');
 			}
-			if (e.code == 'user-mismatch') {
+			if (user.email != null && user.email!.isNotEmpty &&
+					account.email.toLowerCase() != user.email!.toLowerCase()) {
 				throw AuthException('Please choose the same Google account you are currently signed in with.');
 			}
-			if (e.code == 'popup-blocked') {
-				throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
+			final auth = account.authentication;
+			final credential = GoogleAuthProvider.credential(
+				idToken: auth.idToken,
+			);
+			await user.reauthenticateWithCredential(credential);
+		} on FirebaseAuthException catch (e, stackTrace) {
+			AppLogger.error('AuthService.reauthenticateWithGoogle error', e, stackTrace);
+			throw AuthException(_friendlyAuthMessage(
+				e,
+				fallback: 'Unable to re-authenticate. Please try again.',
+			));
+		} on GoogleSignInException catch (e, stackTrace) {
+			AppLogger.error('AuthService.reauthenticateWithGoogle error', e, stackTrace);
+			if (e.code == GoogleSignInExceptionCode.canceled) {
+				throw AuthCanceledException('Re-authentication cancelled');
 			}
-
-			// Fallback for web popup edge-cases: refresh sign-in using popup.
-			try {
-				final credential = await _firebaseAuth.signInWithPopup(googleProvider);
-				if (credential.user == null || credential.user!.uid != user.uid) {
-					throw AuthException('Please choose the same Google account you are currently signed in with.');
-				}
-				return;
-			} on FirebaseAuthException catch (fallbackError, fallbackStackTrace) {
-				AppLogger.error('AuthService.reauthenticateWithGoogle fallback error', fallbackError, fallbackStackTrace);
-				if (fallbackError.code == 'popup-closed-by-user' ||
-						fallbackError.code == 'cancelled-popup-request') {
-					throw AuthCanceledException('Re-authentication cancelled');
-				}
-				if (fallbackError.code == 'popup-blocked') {
-					throw AuthException('Popup was blocked by the browser. Please allow popups and try again.');
-				}
-				if (fallbackError.code == 'user-mismatch') {
-					throw AuthException('Please choose the same Google account you are currently signed in with.');
-				}
-				throw AuthException(_friendlyAuthMessage(
-					fallbackError,
-					fallback: _friendlyAuthMessage(e, fallback: 'Unable to re-authenticate. Please try again.'),
-				));
-			}
+			throw AuthException('Unable to re-authenticate. Please try again.');
 		}
 	}
 
@@ -196,7 +263,7 @@ class AuthService {
 
 			return updated;
 		} catch (e) {
-			if (_isOfflineFirestoreError(e)) {
+			if (_isOfflineFirestoreError(e) || _isPermissionDeniedFirestoreError(e)) {
 				return _fallbackUserFromAuth(uid);
 			}
 			rethrow;
@@ -211,6 +278,16 @@ class AuthService {
 		return message.contains('[cloud_firestore/unavailable]') ||
 				message.contains('client is offline') ||
 				message.contains('failed to get document because the client is offline');
+	}
+
+	bool _isPermissionDeniedFirestoreError(Object error) {
+		if (error is RepositoryException) {
+			return error.code == 'permission-denied';
+		}
+		final message = error.toString().toLowerCase();
+		return message.contains('[cloud_firestore/permission-denied]') ||
+				message.contains('missing or insufficient permissions') ||
+				message.contains('permission-denied');
 	}
 
 	UserModel _fallbackUserFromAuth(String uid) {

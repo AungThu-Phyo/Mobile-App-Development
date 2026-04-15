@@ -170,6 +170,7 @@ class JoinRequestService {
     String acceptedRequesterUid = '';
     String requestType = JoinRequestType.join;
     bool sessionIsFull = false;
+    bool wasAcceptedInThisCall = false;
     final rejectedRequesterUids = <String>[];
 
     await _requestRepo.runTransaction((tx) async {
@@ -178,16 +179,19 @@ class JoinRequestService {
         throw StateError('request-not-found');
       }
 
-      if (request.status != JoinRequestStatus.pending) {
-        throw StateError('request-not-pending');
-      }
-
       sessionId = request.sessionId;
+      creatorUid = request.creatorUid;
       acceptedRequesterUid = request.requesterUid;
       requestType = request.requestType;
       if (sessionId.isEmpty || acceptedRequesterUid.isEmpty) {
         throw StateError('request-invalid');
       }
+
+      if (request.status != JoinRequestStatus.pending) {
+        return;
+      }
+
+      wasAcceptedInThisCall = true;
 
       final session = await _sessionRepo.getByIdTx(tx, sessionId);
       if (session == null) {
@@ -244,7 +248,7 @@ class JoinRequestService {
 
     // Handle other pending requests after the transaction commits.
     // This avoids mixing non-transactional queries within a transaction callback.
-    if (sessionId.isNotEmpty) {
+    if (wasAcceptedInThisCall && sessionId.isNotEmpty) {
       final pendingSameSession = await _requestRepo.getPendingForSession(sessionId);
       for (final other in pendingSameSession) {
         if (other.requestId == requestId || other.requestType != JoinRequestType.join) {
@@ -265,30 +269,32 @@ class JoinRequestService {
       }
     }
 
-    for (final uid in rejectedRequesterUids) {
+    if (wasAcceptedInThisCall) {
+      for (final uid in rejectedRequesterUids) {
+        await _sendNotification(
+          recipientUid: uid,
+          senderUid: creatorUid,
+          senderName: creatorName,
+          sessionId: sessionId,
+          sessionTitle: sessionTitle,
+          type: NotificationType.requestRejected,
+          message:
+              '$creatorName could not accept your request to join "$sessionTitle" (session is full)',
+        );
+      }
+
       await _sendNotification(
-        recipientUid: uid,
+        recipientUid: acceptedRequesterUid,
         senderUid: creatorUid,
         senderName: creatorName,
         sessionId: sessionId,
         sessionTitle: sessionTitle,
-        type: NotificationType.requestRejected,
-        message:
-            '$creatorName could not accept your request to join "$sessionTitle" (session is full)',
+        type: NotificationType.requestAccepted,
+        message: requestType == JoinRequestType.leave
+            ? '$creatorName approved your leave request for "$sessionTitle"'
+            : '$creatorName accepted your request to join "$sessionTitle"',
       );
     }
-
-    await _sendNotification(
-      recipientUid: acceptedRequesterUid,
-      senderUid: creatorUid,
-      senderName: creatorName,
-      sessionId: sessionId,
-      sessionTitle: sessionTitle,
-      type: NotificationType.requestAccepted,
-      message: requestType == JoinRequestType.leave
-          ? '$creatorName approved your leave request for "$sessionTitle"'
-          : '$creatorName accepted your request to join "$sessionTitle"',
-    );
 
     return AcceptRequestResult(
       sessionId: sessionId,

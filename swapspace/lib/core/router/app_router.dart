@@ -166,6 +166,8 @@ class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
       });
     }
     if (uid.isEmpty) {
+      context.read<JoinRequestProvider>().stopListeningIncomingRequests();
+      context.read<NotificationProvider>().stopListeningNotifications();
       _streamStarted = false;
       _activeUid = '';
     }

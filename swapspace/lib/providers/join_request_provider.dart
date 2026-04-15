@@ -26,6 +26,7 @@ class JoinRequestProvider extends BaseStateProvider {
   bool _isLoadingMoreIncomingRequests = false;
   bool _isLoadingMoreOutgoingRequests = false;
   bool _hasLiveIncomingData = false;
+  final Set<String> _actingRequestIds = <String>{};
 
   List<JoinRequestModel> get incomingRequests => _incomingRequests;
   List<JoinRequestModel> get outgoingRequests => _outgoingRequests;
@@ -35,6 +36,9 @@ class JoinRequestProvider extends BaseStateProvider {
   bool get hasMoreOutgoingRequests => _hasMoreOutgoingRequests;
   bool get isLoadingMoreIncomingRequests => _isLoadingMoreIncomingRequests;
   bool get isLoadingMoreOutgoingRequests => _isLoadingMoreOutgoingRequests;
+
+  bool isRequestActing(String requestId) =>
+      _actingRequestIds.contains(requestId);
 
   int get pendingIncomingCount =>
       _hasLiveIncomingData
@@ -60,6 +64,14 @@ class JoinRequestProvider extends BaseStateProvider {
     }, onError: (e, stackTrace) {
       AppLogger.error('JoinRequestProvider.listenIncomingRequests error', e, stackTrace);
     });
+  }
+
+  void stopListeningIncomingRequests() {
+    _incomingSub?.cancel();
+    _incomingSub = null;
+    _liveIncomingRequests = [];
+    _hasLiveIncomingData = false;
+    notifyListeners();
   }
 
   // ---------------------------------------------------------------------------
@@ -198,6 +210,13 @@ class JoinRequestProvider extends BaseStateProvider {
   // ---------------------------------------------------------------------------
 
   Future<bool> acceptRequest(String requestId) async {
+    if (_actingRequestIds.contains(requestId)) {
+      return false;
+    }
+
+    _actingRequestIds.add(requestId);
+    notifyListeners();
+
     return runWithLoading<bool>(
       debugLabel: 'JoinRequestProvider.acceptRequest',
       errorMessage: 'Unable to accept request',
@@ -208,10 +227,20 @@ class JoinRequestProvider extends BaseStateProvider {
         await _hydrateRequestRelations();
         return true;
       },
-    );
+    ).whenComplete(() {
+      _actingRequestIds.remove(requestId);
+      notifyListeners();
+    });
   }
 
   Future<bool> rejectRequest(String requestId) async {
+    if (_actingRequestIds.contains(requestId)) {
+      return false;
+    }
+
+    _actingRequestIds.add(requestId);
+    notifyListeners();
+
     return runWithLoading<bool>(
       debugLabel: 'JoinRequestProvider.rejectRequest',
       errorMessage: 'Unable to reject request',
@@ -228,7 +257,10 @@ class JoinRequestProvider extends BaseStateProvider {
         }
         return true;
       },
-    );
+    ).whenComplete(() {
+      _actingRequestIds.remove(requestId);
+      notifyListeners();
+    });
   }
 
   // ---------------------------------------------------------------------------

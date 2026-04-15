@@ -50,6 +50,16 @@ class NotificationProvider extends BaseStateProvider {
     });
   }
 
+  void stopListeningNotifications() {
+    _sub?.cancel();
+    _sub = null;
+    _liveNotifications = [];
+    _hasLiveNotificationData = false;
+    setLoading(false);
+    setError(null);
+    notifyListeners();
+  }
+
   Future<void> loadNotifications(String uid) async {
     final firstPage = await runWithLoading<NotificationPageResult>(
       debugLabel: 'NotificationProvider.loadNotifications',

@@ -62,7 +62,17 @@ class AuthProvider extends BaseStateProvider {
 
   Future<void> signOut() async {
     _publicUserCache.clear();
-    await _authService.signOut();
+    _userId = null;
+    _currentUser = null;
+    setError(null);
+    setLoading(false);
+    notifyListeners();
+
+    try {
+      await _authService.signOut();
+    } catch (e, stackTrace) {
+      AppLogger.error('AuthProvider.signOut error', e, stackTrace);
+    }
   }
 
   Future<bool> reauthenticateForSensitiveAction() async {
