@@ -58,6 +58,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         .streamSession(_session.sessionId)
         .listen((latest) {
       if (!mounted || latest == null) return;
+      if (_isEquivalentSession(_session, latest)) {
+        return;
+      }
       final previousStatus = _session.status;
       setState(() {
         _liveSession = latest;
@@ -68,6 +71,26 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         _checkFeedback();
       }
     });
+  }
+
+  bool _isEquivalentSession(SessionModel current, SessionModel incoming) {
+    if (current.sessionId != incoming.sessionId) return false;
+    if (current.status != incoming.status) return false;
+    if (current.partnerUid != incoming.partnerUid) return false;
+    if (current.isActive != incoming.isActive) return false;
+    if (current.maxParticipants != incoming.maxParticipants) return false;
+    if (current.updatedAt != incoming.updatedAt) return false;
+
+    if (current.participantUids.length != incoming.participantUids.length) {
+      return false;
+    }
+    for (var i = 0; i < current.participantUids.length; i++) {
+      if (current.participantUids[i] != incoming.participantUids[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   Future<void> _loadCreator() async {

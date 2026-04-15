@@ -34,6 +34,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     _loadData();
   }
 
+  void _resetRevieweeState() {
+    for (final controller in _commentControllers.values) {
+      controller.dispose();
+    }
+    _commentControllers.clear();
+    _ratings.clear();
+    _didShowUps.clear();
+  }
+
   Future<void> _loadData() async {
     final authProvider = context.read<AuthProvider>();
     final currentUid = authProvider.userId ?? '';
@@ -70,6 +79,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
     final List<UserModel> reviewees = [];
     try {
+      _resetRevieweeState();
       final usersById = await authProvider.getUsersByIds(otherUids);
       for (final uid in otherUids) {
         final user = usersById[uid];
@@ -77,7 +87,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           reviewees.add(user);
           _ratings[uid] = 0;
           _didShowUps[uid] = true;
-          _commentControllers[uid] = TextEditingController();
+          _commentControllers.putIfAbsent(uid, TextEditingController.new);
         }
       }
     } catch (e, stackTrace) {
@@ -95,13 +105,17 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   void dispose() {
-    for (final controller in _commentControllers.values) {
-      controller.dispose();
-    }
+    _resetRevieweeState();
     super.dispose();
   }
 
-  bool get _allRated => _ratings.values.every((r) => r > 0);
+  bool get _allRated {
+    if (_reviewees.isEmpty) return false;
+    for (final reviewee in _reviewees) {
+      if ((_ratings[reviewee.uid] ?? 0) <= 0) return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
