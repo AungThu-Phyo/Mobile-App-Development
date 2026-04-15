@@ -155,6 +155,24 @@ void main() {
     );
 
     final now = DateTime(2024, 1, 1, 10, 0);
+    final session = SessionModel(
+      sessionId: 'session-1',
+      creatorUid: 'creator-1',
+      creatorName: 'Creator',
+      activityType: SessionConstants.defaultActivityType,
+      title: 'Study Session',
+      location: 'Library',
+      date: now.add(const Duration(days: 1)),
+      durationMinutes: 60,
+      maxParticipants: 3,
+      participantUids: ['creator-1'],
+      status: SessionStatus.open,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await sessionRepo.create(session);
+
     final existing = JoinRequestModel(
       requestId: 'req-existing',
       sessionId: 'session-1',
