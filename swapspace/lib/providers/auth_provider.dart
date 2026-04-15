@@ -33,11 +33,35 @@ class AuthProvider extends BaseStateProvider {
       }
     } catch (e, stackTrace) {
       AppLogger.error('AuthProvider._onAuthStateChanged bootstrap error', e, stackTrace);
+
+      if (_isInvalidAuthSessionError(e)) {
+        _userId = null;
+        try {
+          await _authService.signOut();
+        } catch (_) {
+          // Best-effort sign out to clear stale local auth session.
+        }
+        _currentUser = null;
+        setError('Your session expired. Please sign in again.');
+        return;
+      }
+
       _currentUser = null;
       setError('Profile data could not be loaded. Please sign in again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  bool _isInvalidAuthSessionError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('invalid refresh token') ||
+        message.contains('token expired') ||
+        message.contains('user-token-expired') ||
+        message.contains('invalid-user-token') ||
+        message.contains('auth/user-token-expired') ||
+        message.contains('auth/invalid-user-token') ||
+        message.contains('securetoken.googleapis.com');
   }
 
   Future<bool> signInWithGoogle() async {
