@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "868778657512-tugk2k77ar6g5r254301f7eo0u2hmula.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aungthuphyo.swapspace",
+            "certificate_hash": "5af3b9bf07cc7b0f0144fc9c8527f6fa0a230b8d"
+          }
+        },
+        {
           "client_id": "868778657512-9ghpumi9ursrnfuv6lgdjoni4cuios14.apps.googleusercontent.com",
           "client_type": 3
         }
