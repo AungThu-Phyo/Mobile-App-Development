@@ -17,6 +17,18 @@ void main() {
     registerFallbackValue(UserModel.empty());
   });
 
+  test('isAllowedSchoolEmail returns true for @lamduan.mfu.ac.th', () {
+    expect(
+      AuthService.isAllowedSchoolEmail('6731503046@lamduan.mfu.ac.th'),
+      isTrue,
+    );
+  });
+
+  test('isAllowedSchoolEmail returns false for non-school domains', () {
+    expect(AuthService.isAllowedSchoolEmail('student@gmail.com'), isFalse);
+    expect(AuthService.isAllowedSchoolEmail('student@lamduan.mfu.ac.thx'), isFalse);
+  });
+
   test('bootstrapUser creates a user when missing', () async {
     final userRepo = MockUserRepository();
     final feedbackRepo = MockFeedbackRepository();

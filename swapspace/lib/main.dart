@@ -216,15 +216,33 @@ Future<void> _activateAppCheck() async {
       return;
     }
 
+    const androidProviderOverride = String.fromEnvironment(
+      'APP_CHECK_ANDROID_PROVIDER',
+      defaultValue: 'auto',
+    );
+    const appleProviderOverride = String.fromEnvironment(
+      'APP_CHECK_APPLE_PROVIDER',
+      defaultValue: 'auto',
+    );
+
+    final useAndroidDebugProvider =
+        kDebugMode || androidProviderOverride.toLowerCase() == 'debug';
+    final useAppleDebugProvider =
+        kDebugMode || appleProviderOverride.toLowerCase() == 'debug';
+
     await FirebaseAppCheck.instance.activate(
-      providerAndroid: kDebugMode
+      providerAndroid: useAndroidDebugProvider
           ? const AndroidDebugProvider()
           : const AndroidPlayIntegrityProvider(),
-      providerApple: kDebugMode
+      providerApple: useAppleDebugProvider
           ? const AppleDebugProvider()
           : const AppleAppAttestProvider(),
     );
-    debugPrint('✅ Firebase App Check enabled for mobile platform.');
+    debugPrint(
+      '✅ Firebase App Check enabled for mobile platform. '
+      '(android=${useAndroidDebugProvider ? 'debug' : 'play_integrity'}, '
+      'apple=${useAppleDebugProvider ? 'debug' : 'app_attest'})',
+    );
   } catch (e) {
     debugPrint('Firebase App Check activation skipped: $e');
   }

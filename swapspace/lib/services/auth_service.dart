@@ -14,6 +14,9 @@ import '../repositories/user_repository.dart';
 
 class AuthService {
 	static const Duration _lastSeenWriteInterval = Duration(minutes: 15);
+	static const String _allowedSchoolDomain = 'lamduan.mfu.ac.th';
+	static const String _schoolEmailOnlyMessage =
+			'Login only with school Gmail (@lamduan.mfu.ac.th).';
 
 	final UserRepository _userRepo;
 	final FeedbackRepository _feedbackRepo;
@@ -46,6 +49,11 @@ class AuthService {
 
 				final userCredential =
 						await _firebaseAuth.signInWithPopup(googleProvider);
+				final signedInEmail = userCredential.user?.email?.trim() ?? '';
+				if (!_isAllowedSchoolEmail(signedInEmail)) {
+					await _firebaseAuth.signOut();
+					throw AuthException(_schoolEmailOnlyMessage);
+				}
 				return userCredential.user != null;
 			}
 
@@ -56,6 +64,9 @@ class AuthService {
 			);
 			if (account.email.isEmpty) {
 				throw AuthCanceledException('Sign in cancelled');
+			}
+			if (!_isAllowedSchoolEmail(account.email)) {
+				throw AuthException(_schoolEmailOnlyMessage);
 			}
 			final auth = account.authentication;
 			final credential = GoogleAuthProvider.credential(
@@ -426,6 +437,12 @@ class AuthService {
 		}
 		return true;
 	}
+
+	@visibleForTesting
+	static bool isAllowedSchoolEmail(String email) =>
+			email.trim().toLowerCase().endsWith('@$_allowedSchoolDomain');
+
+	bool _isAllowedSchoolEmail(String email) => isAllowedSchoolEmail(email);
 }
 
 class AuthException implements Exception {
