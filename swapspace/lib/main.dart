@@ -119,8 +119,8 @@ Future<void> _loadEnvironmentVariables() async {
   final cacheBuster = DateTime.now().millisecondsSinceEpoch;
   final envPaths = kIsWeb
       ? [
-          '/assets/.env?v=$cacheBuster',
           '/.env?v=$cacheBuster',
+          '/assets/.env?v=$cacheBuster',
           '/assets/.env',
           '/.env',
           'assets/.env',
