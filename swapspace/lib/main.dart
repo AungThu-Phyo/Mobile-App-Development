@@ -8,7 +8,6 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:html' as html show window;
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/consent_provider.dart';
@@ -34,10 +33,6 @@ import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (kIsWeb) {
-    _suppressDotenvConsoleWarnings();
-  }
 
   await _loadEnvironmentVariables();
 
@@ -120,44 +115,6 @@ void main() async {
   );
 }
 
-}
-
-void _suppressDotenvConsoleWarnings() {
-  // Suppress dotenv "invalid (html-like or missing API key)" warnings on web
-  // since we expect 404s for some .env probe paths on Firebase Hosting SPA
-  if (!kIsWeb) return;
-  
-  try {
-    final script = html.ScriptElement()
-      ..text = r'''
-      (function() {
-        const originalWarn = console.warn;
-        const originalLog = console.log;
-        
-        console.warn = function(...args) {
-          const message = args[0]?.toString() || '';
-          if (message.includes('dotenv from') && message.includes('invalid')) {
-            return;
-          }
-          originalWarn.apply(console, args);
-        };
-        
-        console.log = function(...args) {
-          const message = args[0]?.toString() || '';
-          if (message.includes('dotenv from') && message.includes('invalid')) {
-            return;
-          }
-          originalLog.apply(console, args);
-        };
-      })();
-      ''';
-    
-    html.window.document.head?.append(script);
-  } catch (e) {
-    debugPrint('Failed to suppress console warnings: $e');
-  }
-}
-
 Future<void> _loadEnvironmentVariables() async {
   final cacheBuster = DateTime.now().millisecondsSinceEpoch;
   final envPaths = kIsWeb
@@ -189,13 +146,17 @@ Future<void> _loadEnvironmentVariables() async {
         return;
       }
 
-      debugPrint(
-        '⚠️ dotenv from $envFileName looked invalid (html-like or missing API key), trying next path.',
-      );
+      if (!kIsWeb) {
+        debugPrint(
+          '⚠️ dotenv from $envFileName looked invalid (html-like or missing API key), trying next path.',
+        );
+      }
     } catch (e, stack) {
       lastError = e;
       lastStack = stack;
-      debugPrint('⚠️ dotenv load failed from $envFileName: $e');
+      if (!kIsWeb) {
+        debugPrint('⚠️ dotenv load failed from $envFileName: $e');
+      }
     }
   }
 
