@@ -113,7 +113,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(RouteNames.home),
+          onPressed: _navigateBackToCurrentPage,
         ),
       ),
       body: _loading
@@ -503,7 +503,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _submit(FeedbackProvider provider) async {
-      final currentUid = context.read<AuthProvider>().userId ?? '';
+    final currentUid = context.read<AuthProvider>().userId ?? '';
 
     bool allSuccess = true;
     for (final reviewee in _reviewees) {
@@ -517,8 +517,17 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         didShowUp: _didShowUps[reviewee.uid] ?? true,
         createdAt: DateTime.now(),
       );
-      final success = await provider.submitFeedback(feedback);
-      if (!success) allSuccess = false;
+      try {
+        final success = await provider.submitFeedback(feedback);
+        if (!success) {
+          allSuccess = false;
+          break;
+        }
+      } catch (e, stackTrace) {
+        AppLogger.error('FeedbackScreen._submit submit error', e, stackTrace);
+        allSuccess = false;
+        break;
+      }
     }
 
     if (mounted) {
@@ -526,19 +535,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Feedback submitted! Thank you.')),
         );
-        final navigator = Navigator.of(context);
-        if (navigator.canPop()) {
-          navigator.pop(true);
-          return;
-        }
-
-        final rootNavigator = Navigator.of(context, rootNavigator: true);
-        if (rootNavigator.canPop()) {
-          rootNavigator.pop(true);
-          return;
-        }
-
-        context.go(RouteNames.home);
+        _navigateBackToCurrentPage();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -547,6 +544,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         );
       }
     }
+  }
+
+  void _navigateBackToCurrentPage() {
+    if (context.canPop()) {
+      context.pop(true);
+      return;
+    }
+    context.go(RouteNames.home);
   }
 
   String _ratingLabel(int rating) {

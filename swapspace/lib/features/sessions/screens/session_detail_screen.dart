@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
+import '../../../core/constants/session_constants.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../models/session_model.dart';
 import '../../../models/user_model.dart';
@@ -98,7 +99,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(RouteNames.home),
+          onPressed: _navigateBackToCurrentPage,
         ),
       ),
       body: LayoutBuilder(
@@ -416,6 +417,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final hasJoined = widget.session.participantUids.contains(currentUid);
     final isMatched = widget.session.status == 'matched';
     final isCompleted = widget.session.status == 'completed';
+    final isCancelled = widget.session.status == SessionStatus.cancelled;
+    final canCompleteByTime = _hasSessionEnded(widget.session);
 
     final buttons = <Widget>[];
 
@@ -438,8 +441,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       buttons.add(const SizedBox(height: AppSpacing.sm));
     }
 
-    // "Complete Session" — only for creator of a matched session
-    if (isCreator && isMatched) {
+    // "Complete Session" — creator can complete once session end time has passed.
+    if (isCreator && !isCompleted && !isCancelled && canCompleteByTime) {
       buttons.add(
         SizedBox(
           width: double.infinity,
@@ -606,6 +609,15 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Future<void> _completeSession() async {
+    if (!_hasSessionEnded(widget.session)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can complete this session after its end time.'),
+        ),
+      );
+      return;
+    }
+
     final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -641,14 +653,24 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       await context.read<AuthProvider>().refreshCurrentUser();
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Session completed! Please give feedback.'),
-        ),
+        const SnackBar(content: Text('Session completed.')),
       );
-      await context.push(RouteNames.feedback, extra: updated);
-      if (!mounted) return;
-      await _checkFeedback();
+      _navigateBackToCurrentPage();
     }
+  }
+
+  bool _hasSessionEnded(SessionModel session) {
+    final endTime = session.date.add(Duration(minutes: session.durationMinutes));
+    final now = DateTime.now();
+    return !now.isBefore(endTime);
+  }
+
+  void _navigateBackToCurrentPage() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go(RouteNames.home);
   }
 
   void _showJoinDialog(BuildContext context, String currentUid) {

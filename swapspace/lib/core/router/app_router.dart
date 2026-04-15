@@ -71,7 +71,7 @@ abstract class AppRouter {
           path: RouteNames.sessionDetail,
           builder: (context, state) {
             final session = _resolveSession(context, state.extra);
-            if (session == null) return const _MissingSessionScreen();
+            if (session == null) return const _SessionRouteRecoveryScreen();
             return SessionDetailScreen(session: session);
           },
         ),
@@ -79,7 +79,7 @@ abstract class AppRouter {
           path: RouteNames.editSession,
           builder: (context, state) {
             final session = _resolveSession(context, state.extra);
-            if (session == null) return const _MissingSessionScreen();
+            if (session == null) return const _SessionRouteRecoveryScreen();
             return EditSessionScreen(session: session);
           },
         ),
@@ -87,7 +87,7 @@ abstract class AppRouter {
           path: RouteNames.feedback,
           builder: (context, state) {
             final session = _resolveSession(context, state.extra);
-            if (session == null) return const _MissingSessionScreen();
+            if (session == null) return const _SessionRouteRecoveryScreen();
             return FeedbackScreen(session: session);
           },
         ),
@@ -108,35 +108,32 @@ abstract class AppRouter {
   }
 }
 
-class _MissingSessionScreen extends StatelessWidget {
-  const _MissingSessionScreen();
+class _SessionRouteRecoveryScreen extends StatefulWidget {
+  const _SessionRouteRecoveryScreen();
+
+  @override
+  State<_SessionRouteRecoveryScreen> createState() =>
+      _SessionRouteRecoveryScreenState();
+}
+
+class _SessionRouteRecoveryScreenState
+    extends State<_SessionRouteRecoveryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (context.canPop()) {
+        context.pop();
+        return;
+      }
+      context.go(RouteNames.home);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Session not available')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.event_busy_rounded, size: 56),
-              const SizedBox(height: 12),
-              const Text(
-                'Session data was not available for this route.\nPlease go back and open the session again.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => context.go(RouteNames.home),
-                child: const Text('Go Home'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
