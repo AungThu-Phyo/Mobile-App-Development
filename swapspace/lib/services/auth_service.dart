@@ -215,7 +215,11 @@ class AuthService {
 				? 0.0
 				: feedbackSummary.fold<int>(0, (sum, fb) => sum + fb.rating) /
 					feedbackSummary.length;
-			final totalSessions = feedbackSummary.length;
+			final totalSessions = feedbackSummary
+				.map((fb) => fb.sessionId)
+				.where((id) => id.isNotEmpty)
+				.toSet()
+				.length;
 			final currentUser = _firebaseAuth.currentUser;
 			if (existing == null) {
 				final now = DateTime.now();

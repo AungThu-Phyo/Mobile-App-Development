@@ -39,7 +39,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final currentUid = authProvider.userId ?? '';
     final feedbackProvider = context.read<FeedbackProvider>();
 
-    final otherUids = widget.session.participantUids
+    final otherUids = <String>{
+      ...widget.session.participantUids,
+      widget.session.creatorUid,
+    }
         .where((uid) => uid != currentUid)
         .toList();
 

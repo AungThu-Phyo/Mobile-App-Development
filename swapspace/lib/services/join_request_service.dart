@@ -70,6 +70,10 @@ class JoinRequestService {
     return _requestRepo.streamForCreator(uid).map((requests) => requests.toList());
   }
 
+  Stream<List<JoinRequestModel>> listenOutgoingRequests(String uid) {
+    return _requestRepo.streamForRequester(uid).map((requests) => requests.toList());
+  }
+
   Future<List<JoinRequestModel>> loadIncomingRequests(String uid) async {
     final firstPage = await loadIncomingRequestsPage(uid: uid);
     return firstPage.items;

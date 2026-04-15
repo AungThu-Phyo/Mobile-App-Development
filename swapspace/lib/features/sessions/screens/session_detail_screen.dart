@@ -53,9 +53,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     if (widget.session.status != 'completed') return;
       final currentUid = context.read<AuthProvider>().userId ?? '';
     if (currentUid.isEmpty) return;
-    final otherCount = widget.session.participantUids
-        .where((uid) => uid != currentUid)
-        .length;
+    final revieweeUids = <String>{
+      ...widget.session.participantUids,
+      widget.session.creatorUid,
+    }..remove(currentUid);
+    final otherCount = revieweeUids.length;
     final submitted = await context
         .read<FeedbackProvider>()
         .hasAllFeedbackSubmitted(

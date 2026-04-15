@@ -130,6 +130,20 @@ class JoinRequestRepository {
         });
   }
 
+  /// Raw stream of requests for a requester (all statuses).
+  Stream<List<JoinRequestModel>> streamForRequester(String uid) {
+    return _requestsRef
+        .where('requesterUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(defaultPageSize)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => JoinRequestModel.fromMap(doc.data()))
+              .toList();
+        });
+  }
+
   Future<JoinRequestModel?> getByIdTx(Transaction tx, String requestId) async {
     final doc = await tx.get(_requestsRef.doc(requestId));
     if (doc.exists && doc.data() != null) {

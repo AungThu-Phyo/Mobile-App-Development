@@ -162,11 +162,13 @@ class _ScaffoldWithNavState extends State<_ScaffoldWithNav> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         context.read<JoinRequestProvider>().listenIncomingRequests(uid);
+        context.read<JoinRequestProvider>().listenOutgoingRequests(uid);
         context.read<NotificationProvider>().listenNotifications(uid);
       });
     }
     if (uid.isEmpty) {
       context.read<JoinRequestProvider>().stopListeningIncomingRequests();
+      context.read<JoinRequestProvider>().stopListeningOutgoingRequests();
       context.read<NotificationProvider>().stopListeningNotifications();
       _streamStarted = false;
       _activeUid = '';

@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/route_names.dart';
 import '../../../core/constants/session_constants.dart';
-import '../../../core/utils/date_formatter.dart';
 import '../../../models/session_model.dart';
 import '../../../providers/session_provider.dart';
 import '../widgets/session_upsert_form.dart';
@@ -96,18 +95,6 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (!SessionDateFormatter.canEditSession(widget.session.date)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Cannot edit session less than 1 hour before start'),
-            backgroundColor: AppColors.errorRed,
-          ),
-        );
-      }
-      return;
-    }
-
     setState(() => _isSubmitting = true);
 
     final sessionDate = DateTime(
@@ -125,6 +112,21 @@ class _EditSessionScreenState extends State<EditSessionScreen> {
     final maxParticipants =
       int.tryParse(_participantsController.text) ??
       SessionRules.defaultMaxParticipants;
+
+    if (maxParticipants < widget.session.participantUids.length) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Max participants cannot be less than current joined count',
+            ),
+            backgroundColor: AppColors.errorRed,
+          ),
+        );
+      }
+      setState(() => _isSubmitting = false);
+      return;
+    }
 
     final updated = widget.session.copyWith(
       activityType: _activityType,

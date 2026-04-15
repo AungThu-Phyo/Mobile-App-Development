@@ -16,9 +16,11 @@ class JoinRequestProvider extends BaseStateProvider {
   List<JoinRequestModel> _incomingRequests = [];
   List<JoinRequestModel> _outgoingRequests = [];
   List<JoinRequestModel> _liveIncomingRequests = [];
+  List<JoinRequestModel> _liveOutgoingRequests = [];
   final Map<String, SessionModel> _sessionById = {};
   final Map<String, UserModel> _userById = {};
   StreamSubscription<List<JoinRequestModel>>? _incomingSub;
+  StreamSubscription<List<JoinRequestModel>>? _outgoingSub;
   QueryDocumentSnapshot<Map<String, dynamic>>? _incomingCursor;
   QueryDocumentSnapshot<Map<String, dynamic>>? _outgoingCursor;
   bool _hasMoreIncomingRequests = true;
@@ -26,10 +28,12 @@ class JoinRequestProvider extends BaseStateProvider {
   bool _isLoadingMoreIncomingRequests = false;
   bool _isLoadingMoreOutgoingRequests = false;
   bool _hasLiveIncomingData = false;
+  bool _hasLiveOutgoingData = false;
   final Set<String> _actingRequestIds = <String>{};
 
   List<JoinRequestModel> get incomingRequests => _incomingRequests;
-  List<JoinRequestModel> get outgoingRequests => _outgoingRequests;
+  List<JoinRequestModel> get outgoingRequests =>
+      _hasLiveOutgoingData ? _liveOutgoingRequests : _outgoingRequests;
   SessionModel? getCachedSession(String sessionId) => _sessionById[sessionId];
   UserModel? getCachedUser(String uid) => _userById[uid];
   bool get hasMoreIncomingRequests => _hasMoreIncomingRequests;
@@ -71,6 +75,33 @@ class JoinRequestProvider extends BaseStateProvider {
     _incomingSub = null;
     _liveIncomingRequests = [];
     _hasLiveIncomingData = false;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Real-time stream for outgoing requests (used for immediate status updates)
+  // ---------------------------------------------------------------------------
+
+  void listenOutgoingRequests(String uid) {
+    _outgoingSub?.cancel();
+    _outgoingSub = _service.listenOutgoingRequests(uid).listen((requests) {
+      _liveOutgoingRequests = requests;
+      _hasLiveOutgoingData = true;
+
+      _outgoingRequests = requests;
+      unawaited(_hydrateRequestRelations());
+
+      notifyListeners();
+    }, onError: (e, stackTrace) {
+      AppLogger.error('JoinRequestProvider.listenOutgoingRequests error', e, stackTrace);
+    });
+  }
+
+  void stopListeningOutgoingRequests() {
+    _outgoingSub?.cancel();
+    _outgoingSub = null;
+    _liveOutgoingRequests = [];
+    _hasLiveOutgoingData = false;
     notifyListeners();
   }
 

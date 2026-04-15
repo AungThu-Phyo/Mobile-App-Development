@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/route_names.dart';
-import '../../../core/utils/date_formatter.dart';
 import '../../../models/session_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/join_request_provider.dart';
@@ -35,11 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  /// Returns true if the session can still be edited (>= 1 hour before start).
-  bool _canEdit(SessionModel session) {
-    return SessionDateFormatter.canEditSession(session.date);
-  }
-
   void _handleSessionAction({
     required BuildContext context,
     required SessionProvider provider,
@@ -47,21 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isOwner,
   }) {
     provider.selectSession(session);
-    if (isOwner && _canEdit(session)) {
+    if (isOwner) {
       context.go(
         RouteNames.editSession,
         extra: session,
-      );
-      return;
-    }
-
-    if (isOwner) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Cannot edit session less than 1 hour before start',
-          ),
-        ),
       );
       return;
     }

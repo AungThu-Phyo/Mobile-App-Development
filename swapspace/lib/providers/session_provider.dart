@@ -280,6 +280,11 @@ class SessionProvider extends BaseStateProvider {
   }
 
   Future<bool> updateSession(SessionModel session) async {
+    if (session.maxParticipants < session.participantUids.length) {
+      setError('Max participants cannot be less than current joined count');
+      return false;
+    }
+
     return runWithLoading<bool>(
       debugLabel: 'SessionProvider.updateSession',
       errorMessage: 'Unable to update session',
