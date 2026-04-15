@@ -26,6 +26,8 @@ void main() {
     final notificationService = MockNotificationService();
 
     when(() => requestRepo.createRequestId()).thenReturn('req-1');
+    when(() => requestRepo.getFromUser('requester-1'))
+      .thenAnswer((_) async => <JoinRequestModel>[]);
     when(() => requestRepo.create(any())).thenAnswer((_) async {});
     when(
       () => notificationService.sendNotification(
