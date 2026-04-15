@@ -1,10 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../providers/consent_provider.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
+class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
+
+  @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+  bool _accepted = false;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _accepted = context.read<ConsentProvider>().hasConsented;
+      _initialized = true;
+    }
+  }
+
+  Future<bool> _handleBack() async {
+    if (_accepted) {
+      return true;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please accept the privacy policy to continue.'),
+      ),
+    );
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,27 +83,81 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
     ];
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Privacy Policy')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
-          Text(
-            'SwapSpace Privacy Policy',
-            style: AppTextStyles.headingLarge.copyWith(
-              color: AppColors.textPrimary,
-            ),
+    return WillPopScope(
+      onWillPop: _handleBack,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Privacy Policy'),
+          leading: IconButton(
+            onPressed: _accepted
+                ? () => Navigator.of(context).pop()
+                : () async => _handleBack(),
+            icon: const Icon(Icons.arrow_back),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'This page explains what personal data the app uses and why it is needed.',
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: [
+            Text(
+              'SwapSpace Privacy Policy',
+              style: AppTextStyles.headingLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          ...sections.map((section) => _PolicyCard(section: section)),
-        ],
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'This page explains what personal data the app uses and why it is needed.',
+              style: AppTextStyles.bodyLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            ...sections.map((section) => _PolicyCard(section: section)),
+            const SizedBox(height: AppSpacing.lg),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(color: AppColors.grey200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _accepted,
+                        onChanged: (value) {
+                          setState(() => _accepted = value ?? false);
+                        },
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'I have read and agree to the privacy policy.',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _accepted
+                          ? () async {
+                              await context.read<ConsentProvider>().acceptConsent();
+                              if (!mounted) return;
+                              Navigator.of(context).pop();
+                            }
+                          : null,
+                      child: const Text('Agree and Back to Login'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
