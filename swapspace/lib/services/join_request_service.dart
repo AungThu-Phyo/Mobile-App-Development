@@ -130,6 +130,18 @@ class JoinRequestService {
     required String sessionTitle,
     String message = '',
   }) async {
+    // Prevent duplicate pending join requests from generating duplicate notifications.
+    final existing = await _requestRepo.getFromUser(requesterUid);
+    final hasPendingJoin = existing.any(
+      (r) =>
+          r.sessionId == sessionId &&
+          r.requestType == JoinRequestType.join &&
+          r.status == JoinRequestStatus.pending,
+    );
+    if (hasPendingJoin) {
+      return;
+    }
+
     final requestId = _requestRepo.createRequestId();
     final now = DateTime.now();
 
@@ -329,6 +341,19 @@ class JoinRequestService {
     );
 
     final session = await _sessionRepo.getById(request.sessionId);
+    if (session != null &&
+        request.requestType == JoinRequestType.join &&
+        session.status == SessionStatus.matched &&
+        session.participantUids.length < session.maxParticipants) {
+      await _sessionRepo.update(
+        session.copyWith(
+          status: SessionStatus.open,
+          isActive: true,
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+
     final creatorName = session?.creatorName ?? 'Host';
     final title = session?.title ?? 'session';
 

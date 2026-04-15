@@ -140,6 +140,109 @@ void main() {
     expect(notifications.docs.length, 1);
   });
 
+  test('sendJoinRequest is idempotent for existing pending request', () async {
+    final firestore = FakeFirebaseFirestore();
+    final sessionRepo = SessionRepository(firestore: firestore);
+    final requestRepo = JoinRequestRepository(firestore: firestore);
+    final userRepo = UserRepository(firestore: firestore);
+    final notificationRepo = NotificationRepository(firestore: firestore);
+    final notificationService = NotificationService(repository: notificationRepo);
+    final service = JoinRequestService(
+      requestRepository: requestRepo,
+      sessionRepository: sessionRepo,
+      userRepository: userRepo,
+      notificationService: notificationService,
+    );
+
+    final now = DateTime(2024, 1, 1, 10, 0);
+    final existing = JoinRequestModel(
+      requestId: 'req-existing',
+      sessionId: 'session-1',
+      requesterUid: 'user-1',
+      creatorUid: 'creator-1',
+      requestType: JoinRequestType.join,
+      status: JoinRequestStatus.pending,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await requestRepo.create(existing);
+
+    await service.sendJoinRequest(
+      sessionId: 'session-1',
+      creatorUid: 'creator-1',
+      requesterUid: 'user-1',
+      requesterName: 'Requester',
+      sessionTitle: 'Study Session',
+    );
+
+    final outgoing = await requestRepo.getFromUser('user-1');
+    expect(
+      outgoing
+          .where((r) =>
+              r.sessionId == 'session-1' &&
+              r.requestType == JoinRequestType.join &&
+              r.status == JoinRequestStatus.pending)
+          .length,
+      1,
+    );
+
+    final notifications = await firestore.collection('notifications').get();
+    expect(notifications.docs.length, 0);
+  });
+
+  test('rejectRequest reopens matched session when capacity remains', () async {
+    final firestore = FakeFirebaseFirestore();
+    final sessionRepo = SessionRepository(firestore: firestore);
+    final requestRepo = JoinRequestRepository(firestore: firestore);
+    final userRepo = UserRepository(firestore: firestore);
+    final notificationRepo = NotificationRepository(firestore: firestore);
+    final notificationService = NotificationService(repository: notificationRepo);
+    final service = JoinRequestService(
+      requestRepository: requestRepo,
+      sessionRepository: sessionRepo,
+      userRepository: userRepo,
+      notificationService: notificationService,
+    );
+
+    final now = DateTime(2024, 1, 1, 10, 0);
+    final session = SessionModel(
+      sessionId: 'session-open-fix',
+      creatorUid: 'creator-1',
+      creatorName: 'Creator',
+      activityType: SessionConstants.defaultActivityType,
+      title: 'Study Session',
+      location: 'Library',
+      date: now.add(const Duration(days: 1)),
+      durationMinutes: 60,
+      maxParticipants: 2,
+      participantUids: ['creator-1'],
+      status: SessionStatus.matched,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await sessionRepo.create(session);
+
+    await requestRepo.create(
+      JoinRequestModel(
+        requestId: 'req-reject',
+        sessionId: session.sessionId,
+        requesterUid: 'user-1',
+        creatorUid: session.creatorUid,
+        requestType: JoinRequestType.join,
+        status: JoinRequestStatus.pending,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await service.rejectRequest(requestId: 'req-reject');
+
+    final updatedSession = await sessionRepo.getById(session.sessionId);
+    expect(updatedSession, isNotNull);
+    expect(updatedSession!.status, SessionStatus.open);
+    expect(updatedSession.isActive, isTrue);
+  });
+
   test('cancelJoinRequest sets status to cancelled', () async {
     final firestore = FakeFirebaseFirestore();
     final requestRepo = JoinRequestRepository(firestore: firestore);
