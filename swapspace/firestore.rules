@@ -282,8 +282,14 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp
         && request.resource.data.revieweeUid != request.resource.data.reviewerUid
         && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.status == 'completed'
-        && request.auth.uid in get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.participantUids
-        && request.resource.data.revieweeUid in get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.participantUids;
+        && (
+          request.auth.uid == get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.creatorUid
+          || request.auth.uid in get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.participantUids
+        )
+        && (
+          request.resource.data.revieweeUid == get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.creatorUid
+          || request.resource.data.revieweeUid in get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.participantUids
+        );
 
       allow update: if false;
 

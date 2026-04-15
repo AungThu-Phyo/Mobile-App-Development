@@ -1,6 +1,8 @@
 import '../models/feedback_model.dart';
 import '../models/user_model.dart';
 import '../core/constants/session_constants.dart';
+import '../core/errors/repository_exception.dart';
+import '../core/utils/app_logger.dart';
 import '../repositories/feedback_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/user_repository.dart';
@@ -20,12 +22,12 @@ class FeedbackService {
 
   Future<void> submitFeedback(FeedbackModel feedback) async {
     await _repository.create(feedback);
-    await _syncRevieweeStats(feedback.revieweeUid);
+    await _syncRevieweeStatsBestEffort(feedback.revieweeUid);
   }
 
   Future<void> updateFeedback(FeedbackModel feedback) async {
     await _repository.update(feedback);
-    await _syncRevieweeStats(feedback.revieweeUid);
+    await _syncRevieweeStatsBestEffort(feedback.revieweeUid);
   }
 
   Future<void> deleteFeedback(String feedbackId) async {
@@ -35,7 +37,25 @@ class FeedbackService {
     }
 
     await _repository.delete(feedbackId);
-    await _syncRevieweeStats(existing.revieweeUid);
+    await _syncRevieweeStatsBestEffort(existing.revieweeUid);
+  }
+
+  Future<void> _syncRevieweeStatsBestEffort(String revieweeUid) async {
+    try {
+      await _syncRevieweeStats(revieweeUid);
+    } on RepositoryException catch (e, stackTrace) {
+      // Client users cannot always update other users' private/public docs under strict rules.
+      // Feedback creation should still succeed even if stat aggregation write is denied.
+      if (e.code == 'permission-denied' || e.code == 'unauthenticated') {
+        AppLogger.error(
+          'FeedbackService._syncRevieweeStatsBestEffort skipped',
+          e,
+          stackTrace,
+        );
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<double> calculateAverageRating(String uid) async {
