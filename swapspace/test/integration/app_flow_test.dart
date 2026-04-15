@@ -101,6 +101,8 @@ void main() {
 
     when(() => joinRequestService.listenIncomingRequests(any()))
         .thenAnswer((_) => Stream.value(<JoinRequestModel>[]));
+    when(() => joinRequestService.listenOutgoingRequests(any()))
+      .thenAnswer((_) => Stream.value(<JoinRequestModel>[]));
     when(() => joinRequestService.loadIncomingRequestsPage(
           uid: any(named: 'uid'),
           pageSize: any(named: 'pageSize'),

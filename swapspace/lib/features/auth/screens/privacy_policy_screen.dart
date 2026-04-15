@@ -25,16 +25,12 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     }
   }
 
-  Future<bool> _handleBack() async {
-    if (_accepted) {
-      return true;
-    }
+  void _showBackBlocked() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Please accept the privacy policy to continue.'),
       ),
     );
-    return false;
   }
 
   @override
@@ -83,15 +79,20 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       ),
     ];
 
-    return WillPopScope(
-      onWillPop: _handleBack,
+    return PopScope(
+      canPop: _accepted,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _showBackBlocked();
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Privacy Policy'),
           leading: IconButton(
             onPressed: _accepted
                 ? () => Navigator.of(context).pop()
-                : () async => _handleBack(),
+                : _showBackBlocked,
             icon: const Icon(Icons.arrow_back),
           ),
         ),
@@ -145,9 +146,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                     child: ElevatedButton(
                       onPressed: _accepted
                           ? () async {
+                              final navigator = Navigator.of(context);
                               await context.read<ConsentProvider>().acceptConsent();
                               if (!mounted) return;
-                              Navigator.of(context).pop();
+                              navigator.pop();
                             }
                           : null,
                       child: const Text('Agree and Back to Login'),
