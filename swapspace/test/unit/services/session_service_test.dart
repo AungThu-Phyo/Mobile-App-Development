@@ -144,6 +144,7 @@ void main() {
     );
 
     when(() => repo.update(any())).thenAnswer((_) async {});
+    when(() => repo.getById('session-1')).thenAnswer((_) async => matched);
     when(
       () => notificationService.sendNotification(
         recipientUid: any(named: 'recipientUid'),
@@ -196,6 +197,7 @@ void main() {
     );
 
     when(() => repo.update(any())).thenAnswer((_) async {});
+    when(() => repo.getById('session-1')).thenAnswer((_) async => session);
     when(
       () => notificationService.sendNotification(
         recipientUid: any(named: 'recipientUid'),
