@@ -2,16 +2,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:swapspace/models/feedback_model.dart';
 import 'package:swapspace/repositories/feedback_repository.dart';
+import 'package:swapspace/repositories/session_repository.dart';
+import 'package:swapspace/repositories/user_repository.dart';
 import 'package:swapspace/services/feedback_service.dart';
 
 class MockFeedbackRepository extends Mock implements FeedbackRepository {}
+class MockUserRepository extends Mock implements UserRepository {}
+class MockSessionRepository extends Mock implements SessionRepository {}
+
+FeedbackService _buildService({required MockFeedbackRepository feedbackRepo}) {
+  return FeedbackService(
+    repository: feedbackRepo,
+    userRepository: MockUserRepository(),
+    sessionRepository: MockSessionRepository(),
+  );
+}
 
 void main() {
   test('calculateAverageRating returns 0 for empty list', () async {
     final repo = MockFeedbackRepository();
     when(() => repo.getFeedbackForUser('u1')).thenAnswer((_) async => []);
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
     final average = await service.calculateAverageRating('u1');
 
     expect(average, 0.0);
@@ -40,7 +52,7 @@ void main() {
       ],
     );
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
     final average = await service.calculateAverageRating('u1');
 
     expect(average, 3.0);
@@ -69,7 +81,7 @@ void main() {
       (_) async => [older, newer],
     );
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
     final sorted = await service.getFeedbackForUser('u1');
 
     expect(sorted.first.feedbackId, 'f2');
@@ -79,7 +91,7 @@ void main() {
     final repo = MockFeedbackRepository();
     when(() => repo.getById('missing')).thenAnswer((_) async => null);
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
 
     expect(
       () => service.deleteFeedback('missing'),
@@ -104,7 +116,7 @@ void main() {
       ],
     );
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
     final result = await service.hasFeedbackSubmitted('s1', 'u1');
 
     expect(result, isTrue);
@@ -127,7 +139,7 @@ void main() {
       ],
     );
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
 
     expect(await service.hasAllFeedbackSubmitted('s1', 'u1', 1), isTrue);
     expect(await service.hasAllFeedbackSubmitted('s1', 'u1', 2), isFalse);
@@ -156,7 +168,7 @@ void main() {
       (_) async => [older, newer],
     );
 
-    final service = FeedbackService(repository: repo);
+    final service = _buildService(feedbackRepo: repo);
     final sorted = await service.getFeedbackForSession('s1');
 
     expect(sorted.first.feedbackId, 'f2');

@@ -4,11 +4,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:swapspace/models/feedback_model.dart';
 import 'package:swapspace/models/user_model.dart';
 import 'package:swapspace/repositories/feedback_repository.dart';
+import 'package:swapspace/repositories/session_repository.dart';
 import 'package:swapspace/repositories/user_repository.dart';
 import 'package:swapspace/services/auth_service.dart';
 
 class MockUserRepository extends Mock implements UserRepository {}
 class MockFeedbackRepository extends Mock implements FeedbackRepository {}
+class MockSessionRepository extends Mock implements SessionRepository {}
 
 void main() {
   setUpAll(() {
@@ -18,6 +20,7 @@ void main() {
   test('bootstrapUser creates a user when missing', () async {
     final userRepo = MockUserRepository();
     final feedbackRepo = MockFeedbackRepository();
+    final sessionRepo = MockSessionRepository();
     final mockUser = MockUser(
       uid: 'uid-1',
       email: 'test@example.com',
@@ -29,12 +32,16 @@ void main() {
     when(() => userRepo.getUser('uid-1')).thenAnswer((_) async => null);
     when(() => feedbackRepo.getFeedbackForUser('uid-1'))
         .thenAnswer((_) async => []);
+    when(() => sessionRepo.getSessionsByCreator('uid-1')).thenAnswer((_) async => []);
+    when(() => sessionRepo.getSessionsByPartner('uid-1')).thenAnswer((_) async => []);
+    when(() => sessionRepo.getSessionsByParticipant('uid-1')).thenAnswer((_) async => []);
     when(() => userRepo.createUser(any())).thenAnswer((_) async {});
     when(() => userRepo.upsertPublicProfile(any())).thenAnswer((_) async {});
 
     final service = AuthService(
       userRepository: userRepo,
       feedbackRepository: feedbackRepo,
+      sessionRepository: sessionRepo,
       firebaseAuth: firebaseAuth,
     );
 
@@ -50,6 +57,7 @@ void main() {
   test('bootstrapUser updates existing user when data changes', () async {
     final userRepo = MockUserRepository();
     final feedbackRepo = MockFeedbackRepository();
+    final sessionRepo = MockSessionRepository();
     final mockUser = MockUser(
       uid: 'uid-1',
       email: 'test@example.com',
@@ -82,12 +90,16 @@ void main() {
         ),
       ],
     );
+    when(() => sessionRepo.getSessionsByCreator('uid-1')).thenAnswer((_) async => []);
+    when(() => sessionRepo.getSessionsByPartner('uid-1')).thenAnswer((_) async => []);
+    when(() => sessionRepo.getSessionsByParticipant('uid-1')).thenAnswer((_) async => []);
     when(() => userRepo.updateUser(any())).thenAnswer((_) async {});
     when(() => userRepo.upsertPublicProfile(any())).thenAnswer((_) async {});
 
     final service = AuthService(
       userRepository: userRepo,
       feedbackRepository: feedbackRepo,
+      sessionRepository: sessionRepo,
       firebaseAuth: firebaseAuth,
     );
 
