@@ -419,6 +419,25 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
 
     final buttons = <Widget>[];
 
+    // "Update Session" — available to creator while session is still manageable
+    if (isCreator && (isOpen || isMatched)) {
+      buttons.add(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.edit),
+            label: const Text('Update Session'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            ),
+            onPressed: () =>
+                context.go(RouteNames.editSession, extra: widget.session),
+          ),
+        ),
+      );
+      buttons.add(const SizedBox(height: AppSpacing.sm));
+    }
+
     // "Complete Session" — only for creator of a matched session
     if (isCreator && isMatched) {
       buttons.add(
@@ -617,6 +636,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final success = await provider.updateSession(updated);
     if (!mounted) return;
     if (success) {
+      await context.read<AuthProvider>().refreshCurrentUser();
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Session completed! Please give feedback.'),

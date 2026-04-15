@@ -41,7 +41,7 @@ class JoinRequestCard extends StatelessWidget {
         if (context.mounted) {
           if (success) {
             context.read<SessionProvider>().loadOpenSessions();
-            Navigator.pop(context);
+            _dismissPopupIfOpen(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -52,7 +52,7 @@ class JoinRequestCard extends StatelessWidget {
               ),
             );
           } else {
-            Navigator.pop(context);
+            _dismissPopupIfOpen(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -67,7 +67,7 @@ class JoinRequestCard extends StatelessWidget {
         final provider = context.read<JoinRequestProvider>();
         final success = await provider.rejectRequest(request.requestId);
         if (context.mounted && success) {
-          Navigator.pop(context);
+          _dismissPopupIfOpen(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -78,5 +78,12 @@ class JoinRequestCard extends StatelessWidget {
         }
       },
     );
+  }
+
+  void _dismissPopupIfOpen(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route is PopupRoute && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 }

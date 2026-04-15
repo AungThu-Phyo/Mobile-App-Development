@@ -4,9 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/errors/repository_exception.dart';
+import '../core/constants/session_constants.dart';
 import '../core/utils/app_logger.dart';
+import '../models/feedback_model.dart';
 import '../models/user_model.dart';
 import '../repositories/feedback_repository.dart';
+import '../repositories/session_repository.dart';
 import '../repositories/user_repository.dart';
 
 class AuthService {
@@ -14,14 +17,17 @@ class AuthService {
 
 	final UserRepository _userRepo;
 	final FeedbackRepository _feedbackRepo;
+	final SessionRepository _sessionRepo;
 	final FirebaseAuth _firebaseAuth;
 
 	AuthService({
 		required UserRepository userRepository,
 		required FeedbackRepository feedbackRepository,
+		required SessionRepository sessionRepository,
 		FirebaseAuth? firebaseAuth,
 	})  : _userRepo = userRepository,
 			_feedbackRepo = feedbackRepository,
+			_sessionRepo = sessionRepository,
 			_firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
 	Stream<String?> authStateStream() {
@@ -211,15 +217,8 @@ class AuthService {
 		try {
 			final existing = await _userRepo.getUser(uid);
 			final feedbackSummary = await _feedbackRepo.getFeedbackForUser(uid);
-			final averageRating = feedbackSummary.isEmpty
-				? 0.0
-				: feedbackSummary.fold<int>(0, (sum, fb) => sum + fb.rating) /
-					feedbackSummary.length;
-			final totalSessions = feedbackSummary
-				.map((fb) => fb.sessionId)
-				.where((id) => id.isNotEmpty)
-				.toSet()
-				.length;
+			final averageRating = _calculateBlendedRating(feedbackSummary);
+			final totalSessions = await _calculateCompletedSessionCount(uid);
 			final currentUser = _firebaseAuth.currentUser;
 			if (existing == null) {
 				final now = DateTime.now();
@@ -272,6 +271,83 @@ class AuthService {
 			}
 			rethrow;
 		}
+	}
+
+	Future<int> _calculateCompletedSessionCount(String uid) async {
+		final createdFuture = _sessionRepo.getSessionsByCreator(uid);
+		final partneredFuture = _sessionRepo.getSessionsByPartner(uid);
+		final joinedFuture = _sessionRepo.getSessionsByParticipant(uid);
+
+		final results = await Future.wait([
+			createdFuture,
+			partneredFuture,
+			joinedFuture,
+		]);
+
+		final completedSessionIds = <String>{};
+		for (final sessions in results) {
+			for (final session in sessions) {
+				if (session.status == SessionStatus.completed &&
+						session.sessionId.isNotEmpty) {
+					completedSessionIds.add(session.sessionId);
+				}
+			}
+		}
+
+		return completedSessionIds.length;
+	}
+
+	double _calculateBlendedRating(List<FeedbackModel> feedbackList) {
+		if (feedbackList.isEmpty) return 0.0;
+
+		final groupedBySession = <String, List<FeedbackModel>>{};
+		for (final feedback in feedbackList) {
+			final sessionId = feedback.sessionId;
+			final rating = feedback.rating;
+			if (sessionId.isEmpty || rating <= 0) {
+				continue;
+			}
+			groupedBySession.putIfAbsent(sessionId, () => []).add(feedback);
+		}
+
+		if (groupedBySession.isEmpty) return 0.0;
+
+		final sessionAverages = <_SessionAverage>[];
+		for (final entry in groupedBySession.entries) {
+			final ratings = entry.value
+					.map((f) => f.rating)
+					.where((r) => r > 0)
+					.toList();
+			if (ratings.isEmpty) continue;
+
+			final total = ratings.fold<int>(0, (sum, value) => sum + value);
+			final average = total / ratings.length;
+			final latestAt = entry.value
+					.map((f) => f.createdAt)
+					.reduce((a, b) => a.isAfter(b) ? a : b);
+
+			sessionAverages.add(
+				_SessionAverage(
+					average: average,
+					time: latestAt,
+				),
+			);
+		}
+
+		if (sessionAverages.isEmpty) return 0.0;
+
+		sessionAverages.sort((a, b) => a.time.compareTo(b.time));
+
+		var finalRating = 0.0;
+		for (final item in sessionAverages) {
+			if (finalRating == 0.0) {
+				finalRating = item.average;
+			} else {
+				finalRating = (finalRating + item.average) / 2;
+			}
+		}
+
+		return double.parse(finalRating.toStringAsFixed(2));
 	}
 
 	bool _isOfflineFirestoreError(Object error) {
@@ -364,4 +440,11 @@ class AuthCanceledException implements Exception {
 	AuthCanceledException(this.message);
 	@override
 	String toString() => message;
+}
+
+class _SessionAverage {
+	final double average;
+	final DateTime time;
+
+	const _SessionAverage({required this.average, required this.time});
 }

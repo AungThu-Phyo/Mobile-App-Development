@@ -53,9 +53,12 @@ void main() async {
 
   final userRepository = UserRepository();
   final feedbackRepository = FeedbackRepository();
+  final sessionRepository = SessionRepository();
+  final joinRequestRepository = JoinRequestRepository();
   final authService = AuthService(
     userRepository: userRepository,
     feedbackRepository: feedbackRepository,
+    sessionRepository: sessionRepository,
   );
   final authProvider = AuthProvider(authService: authService);
   final consentProvider = ConsentProvider();
@@ -65,7 +68,11 @@ void main() async {
   final notificationService = NotificationService(repository: notificationRepository);
   final notificationProvider = NotificationProvider(service: notificationService);
 
-  final feedbackService = FeedbackService(repository: feedbackRepository);
+  final feedbackService = FeedbackService(
+    repository: feedbackRepository,
+    userRepository: userRepository,
+    sessionRepository: sessionRepository,
+  );
   final feedbackProvider = FeedbackProvider(service: feedbackService);
 
   final privacyRepository = PrivacyRepository();
@@ -76,9 +83,6 @@ void main() async {
   final privacyProvider = PrivacyProvider(service: privacyService);
 
   final themeProvider = ThemeProvider();
-
-  final sessionRepository = SessionRepository();
-  final joinRequestRepository = JoinRequestRepository();
 
   final joinRequestService = JoinRequestService(
     requestRepository: joinRequestRepository,
